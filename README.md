@@ -6,7 +6,11 @@
 
 Crie, personalize e exporte e-mails profissionais sem complicação.
 
+<br>
+
 <img width="50%" src="./public/logo_completa.png" />
+
+<br>
 
 ![Version](https://img.shields.io/badge/version-v0.1.3-red)
 ![Status](https://img.shields.io/badge/status-em%20desenvolvimento-white)
