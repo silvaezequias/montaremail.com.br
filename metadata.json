@@ -1,0 +1,6 @@
+{
+  "name": "MontarEmail",
+  "description": "Criador de templates de email com recurso de arrasta e solta, estilização via Tailwind, suporte a variáveis em tempo real e exportação de código pronto para React Email.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
