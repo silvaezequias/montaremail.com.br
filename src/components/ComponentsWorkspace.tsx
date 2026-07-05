@@ -529,7 +529,7 @@ export default function ComponentsWorkspace({
               </div>
  
               {/* Settings Panel right beside the component editor */}
-              <div className="w-full lg:w-80 shrink-0 h-full border-l border-zinc-800 bg-[#0c0c0c] flex flex-col overflow-hidden shadow-2xl relative">
+              <div className="w-80 shrink-0 h-full border-l border-zinc-800 bg-[#0c0c0c] flex flex-col overflow-hidden shadow-2xl relative">
                 <div className="p-3 bg-[#0f0f0f] border-b border-zinc-800 flex items-center justify-between text-xs font-bold uppercase tracking-wider shrink-0">
                   <span className="flex items-center gap-1.5 text-zinc-200">
                     <Sliders className="h-3.5 w-3.5 text-indigo-400" />

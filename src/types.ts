@@ -5,13 +5,13 @@ export interface EmailVariable {
   description: string;
 }
 
-export type Alignment = "left" | "center" | "right";
+export type Alignment = 'left' | 'center' | 'right';
 
 export interface ElementStyles {
   textColor?: string;
   backgroundColor?: string;
   fontSize?: number;
-  fontWeight?: "normal" | "medium" | "semibold" | "bold";
+  fontWeight?: 'normal' | 'medium' | 'semibold' | 'bold';
   borderRadius?: number;
   borderRadiusTopLeft?: number;
   borderRadiusTopRight?: number;
@@ -33,15 +33,15 @@ export interface ElementStyles {
 }
 
 export type ElementType =
-  | "heading"
-  | "text"
-  | "button"
-  | "image"
-  | "link"
-  | "divider"
-  | "spacer"
-  | "container"
-  | "grid";
+  | 'heading'
+  | 'text'
+  | 'button'
+  | 'image'
+  | 'link'
+  | 'divider'
+  | 'spacer'
+  | 'container'
+  | 'grid';
 
 export interface EmailElement {
   id: string;
@@ -73,7 +73,7 @@ export interface EmailTemplate {
     padding: number;
     bodyWidth?: number;
     hasWidthLimit?: boolean;
-    bodyAlignment?: "center" | "left" | "right";
+    bodyAlignment?: 'center' | 'left' | 'right';
     bodyMarginTop?: number;
     bodyMarginBottom?: number;
   };
@@ -98,13 +98,7 @@ export interface ColorRule {
   id: string;
   name: string;
   variableName: string;
-  operator:
-    | "equals"
-    | "contains"
-    | "not_equals"
-    | "not_contains"
-    | "is_empty"
-    | "is_not_emptyd";
+  operator: 'equals' | 'contains' | 'not_equals';
   value: string;
   colorIfTrue: string;
   colorIfFalse: string;
@@ -119,3 +113,15 @@ export interface VisualIdentity {
   signaturePhone: string;
   signatureColor: string;
 }
+
+export interface Project {
+  id: string;
+  name: string;
+  templates: EmailTemplate[];
+  visualIdentity: VisualIdentity;
+  reusableComponents: ReusableComponent[];
+  updatedAt: number;
+}
+
+
+

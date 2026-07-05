@@ -474,10 +474,17 @@ export default function Canvas({
     if (styles.align) styleObj.textAlign = styles.align;
 
     // Spacings
-    if (styles.paddingTop !== undefined) styleObj.paddingTop = `${styles.paddingTop}px`;
-    if (styles.paddingBottom !== undefined) styleObj.paddingBottom = `${styles.paddingBottom}px`;
-    if (styles.paddingLeft !== undefined) styleObj.paddingLeft = `${styles.paddingLeft}px`;
-    if (styles.paddingRight !== undefined) styleObj.paddingRight = `${styles.paddingRight}px`;
+    if (el.type === 'container' || el.type === 'grid') {
+      styleObj.paddingTop = styles.paddingTop !== undefined ? `${styles.paddingTop}px` : '16px';
+      styleObj.paddingBottom = styles.paddingBottom !== undefined ? `${styles.paddingBottom}px` : '16px';
+      styleObj.paddingLeft = styles.paddingLeft !== undefined ? `${styles.paddingLeft}px` : '16px';
+      styleObj.paddingRight = styles.paddingRight !== undefined ? `${styles.paddingRight}px` : '16px';
+    } else {
+      if (styles.paddingTop !== undefined) styleObj.paddingTop = `${styles.paddingTop}px`;
+      if (styles.paddingBottom !== undefined) styleObj.paddingBottom = `${styles.paddingBottom}px`;
+      if (styles.paddingLeft !== undefined) styleObj.paddingLeft = `${styles.paddingLeft}px`;
+      if (styles.paddingRight !== undefined) styleObj.paddingRight = `${styles.paddingRight}px`;
+    }
     
     if (styles.marginTop !== undefined) styleObj.marginTop = `${styles.marginTop}px`;
     if (styles.marginBottom !== undefined) styleObj.marginBottom = `${styles.marginBottom}px`;
@@ -690,7 +697,7 @@ export default function Canvas({
                           setDragOverContainerId(null);
                           handleDropUnified(e, { type: 'container', containerId: el.id });
                         }}
-                        className={`p-4 border border-dashed rounded-xl relative group/container transition-colors ${
+                        className={`border border-dashed rounded-xl relative group/container transition-colors ${
                           dragOverContainerId === el.id && !dragOverChildId
                             ? 'border-blue-500 bg-blue-500/10'
                             : 'border-zinc-700/50 bg-zinc-900/10'
@@ -848,7 +855,7 @@ export default function Canvas({
                     const gridCells = el.gridCells || {};
                     
                     return (
-                      <div style={elStyle} className="p-4 border border-dashed border-zinc-700/50 rounded-xl relative group/grid bg-zinc-900/10">
+                      <div style={elStyle} className="border border-dashed border-zinc-700/50 rounded-xl relative group/grid bg-zinc-900/10">
                         {/* Grid Label */}
                         <div className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-2">
                           🎛️ Grid de Layout ({rows}x{cols})

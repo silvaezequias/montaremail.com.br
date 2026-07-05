@@ -529,7 +529,7 @@ export default function VisualIdentityWorkspace({
                 <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm">
                   <div style={{ borderLeft: `3px solid ${visualIdentity.signatureColor}`, paddingLeft: '12px' }} className="font-sans text-xs text-slate-700">
                     <p className="m-0 font-bold text-slate-500 text-[10px] uppercase tracking-wider mb-1.5">Atenciosamente,</p>
-                    <p className="m-0 font-extrabold text-sm text-slate-900">{visualIdentity.signatureName || 'Felipe Sales'}</p>
+                    <p className="m-0 font-extrabold text-sm text-slate-900">{visualIdentity.signatureName || 'Ezequias Lopes'}</p>
                     <p className="m-0 text-slate-600 mt-1">
                       {visualIdentity.signatureRole || 'Diretor de Design'} | <strong style={{ color: visualIdentity.signatureColor }}>{visualIdentity.signatureCompany || 'InboxFlow Tech'}</strong>
                     </p>

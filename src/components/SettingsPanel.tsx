@@ -1,6 +1,6 @@
 import React from 'react';
 import { EmailElement, EmailVariable, Alignment } from '../types';
-import { AlignLeft, AlignCenter, AlignRight, Type, Move, Frame, Layout, Image, Link, Sliders, Bold, Italic, Underline, Strikethrough } from 'lucide-react';
+import { AlignLeft, AlignCenter, AlignRight, Type, Move, Frame, Layout, Image, Link, Sliders, Bold, Italic, Underline, Strikethrough, Lock, Unlock } from 'lucide-react';
 import ColorPicker from './ColorPicker';
 
 interface SettingsPanelProps {
@@ -20,12 +20,24 @@ export default function SettingsPanel({
 }: SettingsPanelProps) {
   const { type, content, styles, href, src, alt } = element;
 
+  const [keepProportion, setKeepProportion] = React.useState(true);
+
   const updateStyle = (key: keyof typeof styles, value: any) => {
     onUpdateElement({
       ...element,
       styles: {
         ...styles,
         [key]: value,
+      },
+    });
+  };
+
+  const updateStyles = (updates: Partial<typeof styles>) => {
+    onUpdateElement({
+      ...element,
+      styles: {
+        ...styles,
+        ...updates,
       },
     });
   };
@@ -438,31 +450,77 @@ export default function SettingsPanel({
           {/* Width / Height settings for Image */}
           {type === 'image' && (
             <div className="space-y-3">
-              <div className="space-y-1.5 flex justify-between items-center bg-zinc-900/40 p-3 rounded-xl border border-zinc-800">
-                <span className="text-xs font-semibold text-zinc-400">Largura da Imagem (px)</span>
-                <input
-                  type="number"
-                  min="20"
-                  max="1200"
-                  value={styles.width || 500}
-                  onChange={(e) => updateStyle('width', parseInt(e.target.value) || 500)}
-                  className="text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-zinc-200 focus:outline-none focus:border-blue-500 w-24 text-center"
-                />
-              </div>
-              <div className="space-y-1.5 flex justify-between items-center bg-zinc-900/40 p-3 rounded-xl border border-zinc-800">
-                <span className="text-xs font-semibold text-zinc-400">Altura (Opcional - px)</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="1000"
-                  value={styles.height || ''}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value);
-                    updateStyle('height', isNaN(val) || val <= 0 ? undefined : val);
-                  }}
-                  placeholder="Auto"
-                  className="text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-zinc-200 focus:outline-none focus:border-blue-500 w-24 text-center"
-                />
+              <div className="text-xs font-semibold text-zinc-400">Dimensões da Imagem</div>
+              <div className="flex items-center gap-2">
+                {/* Width */}
+                <div className="flex-1 bg-zinc-900/40 p-3 rounded-xl border border-zinc-800 flex flex-col gap-1.5 relative">
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider text-center">Largura (px)</span>
+                  <input
+                    type="number"
+                    min="20"
+                    max="1200"
+                    value={styles.width || 500}
+                    onChange={(e) => {
+                      const newWidth = parseInt(e.target.value) || 500;
+                      if (keepProportion) {
+                        const currentWidth = styles.width || 500;
+                        const currentHeight = styles.height || 333;
+                        const ratio = currentWidth / currentHeight;
+                        const newHeight = Math.round(newWidth / ratio);
+                        updateStyles({
+                          width: newWidth,
+                          height: newHeight > 0 ? newHeight : undefined,
+                        });
+                      } else {
+                        updateStyle('width', newWidth);
+                      }
+                    }}
+                    className="text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-zinc-200 focus:outline-none focus:border-blue-500 w-full text-center"
+                  />
+                </div>
+
+                {/* Aspect Ratio Lock Toggle Button */}
+                <button
+                  type="button"
+                  onClick={() => setKeepProportion(!keepProportion)}
+                  title={keepProportion ? "Manter proporções (Ativo)" : "Manter proporções (Inativo)"}
+                  className={`p-2.5 rounded-xl border transition-all active:scale-95 cursor-pointer mt-5 flex items-center justify-center shrink-0 ${
+                    keepProportion 
+                      ? 'bg-blue-500/10 border-blue-500/30 text-blue-400 hover:bg-blue-500/20' 
+                      : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  {keepProportion ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                </button>
+
+                {/* Height */}
+                <div className="flex-1 bg-zinc-900/40 p-3 rounded-xl border border-zinc-800 flex flex-col gap-1.5 relative">
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider text-center">Altura (px)</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="1000"
+                    value={styles.height || ''}
+                    placeholder="Auto"
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      const newHeight = isNaN(val) || val <= 0 ? undefined : val;
+                      if (keepProportion && newHeight) {
+                        const currentWidth = styles.width || 500;
+                        const currentHeight = styles.height || 333;
+                        const ratio = currentWidth / currentHeight;
+                        const newWidth = Math.round(newHeight * ratio);
+                        updateStyles({
+                          width: newWidth > 0 ? newWidth : styles.width,
+                          height: newHeight,
+                        });
+                      } else {
+                        updateStyle('height', newHeight);
+                      }
+                    }}
+                    className="text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-zinc-200 focus:outline-none focus:border-blue-500 w-full text-center"
+                  />
+                </div>
               </div>
             </div>
           )}

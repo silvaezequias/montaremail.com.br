@@ -1,16 +1,6 @@
-import React, { useState } from "react";
-import { EmailTemplate } from "../types";
-import {
-  X,
-  Trash2,
-  HardDrive,
-  AlertTriangle,
-  Check,
-  Save,
-  FileText,
-  Calendar,
-  Layers,
-} from "lucide-react";
+import React, { useState } from 'react';
+import { EmailTemplate } from '../types';
+import { X, Trash2, HardDrive, AlertTriangle, Check, Save, FileText, Calendar, Layers } from 'lucide-react';
 
 interface StorageManagerModalProps {
   isOpen: boolean;
@@ -36,11 +26,9 @@ export default function StorageManagerModal({
   isSavingMode = false,
 }: StorageManagerModalProps) {
   const [templateName, setTemplateName] = useState(
-    currentTemplate.id !== "scratch" &&
-      !currentTemplate.id.startsWith("welcome") &&
-      !currentTemplate.id.startsWith("promo")
+    currentTemplate.id !== 'scratch' && !currentTemplate.id.startsWith('welcome') && !currentTemplate.id.startsWith('promo')
       ? currentTemplate.name
-      : "",
+      : ''
   );
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -49,10 +37,7 @@ export default function StorageManagerModal({
   if (!isOpen) return null;
 
   // Calculate percentages
-  const usagePercentage = Math.min(
-    100,
-    (storageUsageBytes / storageLimitBytes) * 100,
-  );
+  const usagePercentage = Math.min(100, (storageUsageBytes / storageLimitBytes) * 100);
   const formattedUsage = (storageUsageBytes / 1024).toFixed(1);
   const formattedLimit = (storageLimitBytes / 1024).toFixed(1);
 
@@ -68,7 +53,7 @@ export default function StorageManagerModal({
     setSaveSuccess(false);
 
     if (!templateName.trim()) {
-      setSaveError("Por favor, insira um nome para o seu template.");
+      setSaveError('Por favor, insira um nome para o seu template.');
       return;
     }
 
@@ -81,22 +66,23 @@ export default function StorageManagerModal({
       }, 1500);
     } else {
       setSaveError(
-        "Limite de armazenamento excedido! Delete um ou mais templates antigos abaixo para liberar espaço.",
+        'Limite de armazenamento excedido! Delete um ou mais templates antigos abaixo para liberar espaço.'
       );
     }
   };
 
   // Color of storage bar based on usage
-  let barColorClass = "bg-blue-500";
+  let barColorClass = 'bg-blue-500';
   if (usagePercentage >= 90) {
-    barColorClass = "bg-red-500";
+    barColorClass = 'bg-red-500';
   } else if (usagePercentage >= 75) {
-    barColorClass = "bg-amber-500";
+    barColorClass = 'bg-amber-500';
   }
 
   return (
     <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
       <div className="bg-[#0f0f0f] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col border border-zinc-800">
+        
         {/* Header */}
         <div className="flex justify-between items-center px-6 py-4 border-b border-zinc-800 bg-[#0f0f0f] rounded-t-2xl">
           <div className="flex items-center gap-2.5">
@@ -105,14 +91,13 @@ export default function StorageManagerModal({
             </div>
             <div>
               <h3 className="font-bold text-zinc-100 text-base">
-                {showSavingFlow
-                  ? "Salvar Template"
-                  : "Gerenciador de Armazenamento"}
+                {showSavingFlow ? 'Salvar Template' : 'Gerenciador de Armazenamento'}
               </h3>
               <p className="text-xs text-zinc-500">
-                {showSavingFlow
-                  ? "Guarde o progresso do seu modelo atual"
-                  : "Gerencie o espaço dos seus templates no navegador"}
+                {showSavingFlow 
+                  ? 'Guarde o progresso do seu modelo atual' 
+                  : 'Gerencie o espaço dos seus templates no navegador'
+                }
               </p>
             </div>
           </div>
@@ -134,17 +119,13 @@ export default function StorageManagerModal({
                 Espaço de Armazenamento
               </span>
               <span className="font-mono text-zinc-400">
-                <strong
-                  className={
-                    usagePercentage >= 90 ? "text-red-400" : "text-zinc-200"
-                  }
-                >
+                <strong className={usagePercentage >= 90 ? 'text-red-400' : 'text-zinc-200'}>
                   {formattedUsage} KB
-                </strong>{" "}
+                </strong>{' '}
                 de {formattedLimit} KB usado ({usagePercentage.toFixed(1)}%)
               </span>
             </div>
-
+            
             {/* Real Progress Bar */}
             <div className="w-full bg-zinc-850 h-3 rounded-full overflow-hidden border border-zinc-800/40">
               <div
@@ -157,9 +138,7 @@ export default function StorageManagerModal({
               <div className="flex items-start gap-2 text-red-400 text-xs bg-red-500/10 p-3 rounded-lg border border-red-900/30">
                 <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                 <p>
-                  <strong>Atenção:</strong> Você está prestes a esgotar o limite
-                  de armazenamento. Delete templates antigos para continuar
-                  salvando novos designs de email.
+                  <strong>Atenção:</strong> Você está prestes a esgotar o limite de armazenamento. Delete templates antigos para continuar salvando novos designs de email.
                 </p>
               </div>
             )}
@@ -172,7 +151,7 @@ export default function StorageManagerModal({
                 <Save className="h-4 w-4 text-blue-400" />
                 Salvar template atual no localStorage
               </div>
-
+              
               <form onSubmit={handleSave} className="space-y-3">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider block">
@@ -285,9 +264,9 @@ export default function StorageManagerModal({
                           {t.updatedAt && (
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3 w-3 text-zinc-600" />
-                              {new Date(t.updatedAt).toLocaleString("pt-BR", {
-                                dateStyle: "short",
-                                timeStyle: "short",
+                              {new Date(t.updatedAt).toLocaleString('pt-BR', {
+                                dateStyle: 'short',
+                                timeStyle: 'short',
                               })}
                             </span>
                           )}
@@ -298,7 +277,9 @@ export default function StorageManagerModal({
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => {
-                            onDeleteTemplate(t.id);
+                            if (window.confirm(`Tem certeza que deseja excluir o modelo salvo "${t.name}"?`)) {
+                              onDeleteTemplate(t.id);
+                            }
                           }}
                           className="p-2 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 rounded-lg transition-colors cursor-pointer"
                           title="Excluir do Armazenamento"
@@ -316,9 +297,8 @@ export default function StorageManagerModal({
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-zinc-800 bg-[#0f0f0f] flex justify-between items-center rounded-b-2xl">
-          <span className="text-[10px] text-zinc-500 leading-normal max-w-85">
-            💡 O limite de armazenamento é definido pelo tamanho de espaço local
-            do seu navegador. Nada é salvo na núvem!
+          <span className="text-[10px] text-zinc-500 leading-normal max-w-[340px]">
+            💡 O limite de 200 KB é simulado para garantir que você possa testar o gerenciamento e a liberação de espaço de forma intuitiva.
           </span>
           <button
             onClick={onClose}
@@ -327,6 +307,7 @@ export default function StorageManagerModal({
             Fechar Janela
           </button>
         </div>
+
       </div>
     </div>
   );
