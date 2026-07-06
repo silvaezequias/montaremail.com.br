@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { Project, EmailTemplate, EmailElement, VisualIdentity, ReusableComponent } from '../types';
 import { DEFAULT_TEMPLATES } from '../utils';
+import MiniTemplatePreview from './MiniTemplatePreview';
+import communityTemplate from '../../templates/community/newsletter_comunidade.json';
 import {
   Folder,
   FileText,
@@ -26,8 +28,14 @@ import {
   AlertTriangle,
   Mail,
   Sliders,
-  Inbox
+  Inbox,
+  Users,
+  Github
 } from 'lucide-react';
+
+const COMMUNITY_TEMPLATES: EmailTemplate[] = [
+  communityTemplate as unknown as EmailTemplate
+];
 
 interface ProjectDashboardProps {
   projects: Project[];
@@ -79,7 +87,7 @@ export default function ProjectDashboard({
   const [previewVisualIdentity, setPreviewVisualIdentity] = useState<VisualIdentity | null>(null);
   
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [dashboardTab, setDashboardTab] = useState<'project' | 'predefined'>('project');
+  const [dashboardTab, setDashboardTab] = useState<'project' | 'predefined' | 'community'>('project');
   const [confirmDeleteProjectId, setConfirmDeleteProjectId] = useState<string | null>(null);
   const [confirmDeleteTemplateId, setConfirmDeleteTemplateId] = useState<string | null>(null);
   
@@ -589,8 +597,8 @@ export default function ProjectDashboard({
               </div>
             </div>
           )}
-                {/* CARDS DE SELEÇÃO DE MODELOS */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-6 border-b border-zinc-900">
+              {/* CARDS DE SELEÇÃO DE MODELOS */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-6 border-b border-zinc-900">
             {/* Card 1: Modelos Deste Projeto */}
             <button
               type="button"
@@ -666,10 +674,48 @@ export default function ProjectDashboard({
                 <ChevronRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
               </div>
             </button>
+
+            {/* Card 3: Templates da Comunidade */}
+            <button
+              type="button"
+              onClick={() => setDashboardTab('community')}
+              className={`p-5 rounded-2xl border transition-all duration-300 text-left cursor-pointer relative group flex flex-col justify-between h-40 ${
+                dashboardTab === 'community'
+                  ? 'border-sky-500 bg-sky-500/10 shadow-lg shadow-sky-500/5'
+                  : 'border-zinc-850 hover:border-zinc-800 bg-zinc-950/20 hover:bg-zinc-950/40'
+              }`}
+            >
+              <div className="space-y-2 w-full">
+                <div className="flex justify-between items-start w-full">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
+                    dashboardTab === 'community' ? 'bg-sky-500/20 text-sky-300' : 'bg-zinc-900 text-zinc-500 group-hover:text-zinc-400'
+                  }`}>
+                    <Users className="h-5 w-5" />
+                  </div>
+                  <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider ${
+                    dashboardTab === 'community' ? 'bg-sky-500/30 text-sky-200 border border-sky-500/40' : 'bg-zinc-900 text-zinc-500 border border-zinc-850'
+                  }`}>
+                    {COMMUNITY_TEMPLATES.length} Contribuições
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-zinc-200 group-hover:text-white">
+                    Templates da Comunidade
+                  </h4>
+                  <p className="text-[11px] text-zinc-500 leading-normal line-clamp-2">
+                    Modelos enviados pela comunidade de código aberto via Pull Requests no GitHub.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-sky-400 mt-2">
+                <span>Explorar Comunidade</span>
+                <ChevronRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
+              </div>
+            </button>
           </div>
 
           {/* RENDERING ACTIVE SECTION */}
-          {dashboardTab === 'project' ? (
+          {dashboardTab === 'project' && (
             /* Section 1: Modelos deste Projeto */
             <div className="space-y-5 pt-2">
               <div className="flex justify-between items-center">
@@ -711,28 +757,33 @@ export default function ProjectDashboard({
                 {/* Blank model option card inside project templates section */}
                 <div
                   onClick={() => onSelectTemplate(activeProject.id, 'blank')}
-                  className="group relative border-2 border-dashed border-zinc-850 hover:border-indigo-550/40 bg-zinc-950/20 hover:bg-zinc-900/20 rounded-2xl p-6 transition-all cursor-pointer flex flex-col justify-center items-center text-center h-56 min-h-[14rem]"
+                  className="group relative border-2 border-dashed border-zinc-850 hover:border-indigo-550/40 bg-zinc-950/20 hover:bg-zinc-900/20 rounded-2xl p-5 transition-all cursor-pointer flex flex-col justify-between text-center h-[350px]"
                 >
-                  <div className="w-12 h-12 rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-500 group-hover:text-indigo-400 group-hover:border-indigo-550/20 group-hover:bg-indigo-550/5 transition-all flex items-center justify-center mb-4 shadow-sm">
-                    <Plus className="h-6 w-6" />
+                  <div className="w-full h-36 rounded-xl border border-dashed border-zinc-800/80 bg-zinc-900/10 flex items-center justify-center transition-colors group-hover:border-indigo-550/30 group-hover:bg-indigo-550/5">
+                    <Plus className="h-6 w-6 text-zinc-600 group-hover:text-indigo-400 transition-all" />
                   </div>
-                  <h4 className="text-xs font-bold text-zinc-300 group-hover:text-white transition-colors">
-                    Novo Modelo em Branco 📄
-                  </h4>
-                  <p className="text-[11px] text-zinc-500 leading-normal max-w-xs mt-2 px-4">
-                    Crie um template do zero com uma estrutura totalmente limpa para começar sua composição.
-                  </p>
+                  <div className="space-y-1 pb-4">
+                    <h4 className="text-xs font-bold text-zinc-300 group-hover:text-white transition-colors">
+                      Novo Modelo em Branco 📄
+                    </h4>
+                    <p className="text-[10px] text-zinc-500 leading-normal max-w-xs px-2">
+                      Comece do zero com uma estrutura totalmente limpa para compor seu e-mail.
+                    </p>
+                  </div>
+                  <div className="w-full py-2 bg-zinc-900 border border-zinc-850 rounded-xl text-zinc-400 font-bold text-xs group-hover:text-white group-hover:bg-indigo-600 group-hover:border-indigo-500 transition-all">
+                    Criar Modelo Limpo
+                  </div>
                 </div>
 
                 {/* List of custom templates of this project */}
                 {activeProject?.templates?.map((tpl) => (
                   <div
                     key={tpl.id}
-                    className="bg-zinc-950/40 border border-zinc-900 hover:border-zinc-800 rounded-2xl p-5 transition-all flex flex-col justify-between h-56 group relative"
+                    className="bg-zinc-950/40 border border-zinc-900 hover:border-zinc-800 rounded-2xl p-5 transition-all flex flex-col justify-between h-[350px] group relative"
                   >
-                    <div className="space-y-3.5">
-                      <div className="flex justify-between items-start">
-                        <div className="w-9 h-9 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-xl flex items-center justify-center shrink-0">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <div className="w-8 h-8 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-lg flex items-center justify-center shrink-0">
                           <Mail className="h-4 w-4" />
                         </div>
 
@@ -801,7 +852,10 @@ export default function ProjectDashboard({
                         </div>
                       </div>
 
-                      <div className="space-y-1">
+                      {/* Mini visual representation of custom templates */}
+                      <MiniTemplatePreview template={tpl} />
+
+                      <div className="space-y-0.5">
                         <h4 className="text-xs font-bold text-zinc-200 group-hover:text-white transition-colors truncate">
                           {tpl.name}
                         </h4>
@@ -813,7 +867,7 @@ export default function ProjectDashboard({
                     </div>
 
                     {/* Primary actions row */}
-                    <div className="pt-4 border-t border-zinc-900/80 flex items-center gap-2">
+                    <div className="pt-3 border-t border-zinc-900/80 flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => {
@@ -839,7 +893,9 @@ export default function ProjectDashboard({
                 ))}
               </div>
             </div>
-          ) : (
+          )}
+
+          {dashboardTab === 'predefined' && (
             /* Section 2: Templates Predefinidos */
             <div className="space-y-5 pt-2">
               <div className="space-y-1">
@@ -855,7 +911,7 @@ export default function ProjectDashboard({
                 {DEFAULT_TEMPLATES.map((tpl) => (
                   <div
                     key={tpl.id}
-                    className="bg-zinc-950/20 border border-zinc-900/60 hover:border-zinc-800 rounded-2xl p-5 transition-all flex flex-col justify-between h-56 group relative"
+                    className="bg-zinc-950/20 border border-zinc-900/60 hover:border-zinc-800 rounded-2xl p-5 transition-all flex flex-col justify-between h-[350px] group relative"
                   >
                     <div className="space-y-3">
                       <div className="flex justify-between items-start">
@@ -879,20 +935,23 @@ export default function ProjectDashboard({
                         </div>
                       </div>
 
-                      <div className="space-y-1">
+                      {/* Mini visual representation of pre-defined templates */}
+                      <MiniTemplatePreview template={tpl} />
+
+                      <div className="space-y-0.5">
                         <h4 className="text-xs font-bold text-zinc-300 group-hover:text-white transition-colors truncate">
                           {tpl.name}
                         </h4>
-                        <p className="text-[10px] text-zinc-500 line-clamp-2 leading-relaxed">
+                        <p className="text-[10px] text-zinc-500 line-clamp-1 leading-relaxed">
                           {tpl.id === 'romantic_gabrielle'
-                            ? 'Lindo template temático com amor, corações e detalhes românticos dedicados para a Gabrielle.'
-                            : 'Modelo otimizado com design limpo, pronto para ser personalizado e editado.'}
+                            ? 'Lindo template temático com amor, corações e detalhes românticos.'
+                            : 'Modelo otimizado com design limpo, pronto para ser personalizado.'}
                         </p>
                       </div>
                     </div>
 
                     {/* Predefined actions row */}
-                    <div className="pt-4 border-t border-zinc-900/60 flex items-center gap-2">
+                    <div className="pt-3 border-t border-zinc-900/60 flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => {
@@ -902,6 +961,90 @@ export default function ProjectDashboard({
                         className="flex-1 py-2 bg-zinc-900 hover:bg-zinc-850 border border-zinc-850 text-zinc-300 hover:text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
                       >
                         <Eye className="h-3.5 w-3.5 text-indigo-400" />
+                        Visualizar
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onCreateTemplate(activeProject.id, tpl.name, tpl);
+                          showToast(`Modelo "${tpl.name}" criado no projeto!`);
+                        }}
+                        className="flex-1 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-750 text-zinc-200 hover:text-white text-xs font-bold rounded-xl shadow transition-all cursor-pointer flex items-center justify-center gap-1.5 font-semibold group-hover:bg-zinc-850"
+                      >
+                        Usar Modelo
+                        <ArrowRight className="h-3.5 w-3.5 text-zinc-400 group-hover:text-white" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {dashboardTab === 'community' && (
+            /* Section 3: Templates da Comunidade */
+            <div className="space-y-5 pt-2">
+              <div className="space-y-1">
+                <h3 className="text-sm font-extrabold uppercase tracking-widest text-sky-400 flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Templates da Comunidade
+                </h3>
+                <p className="text-xs text-zinc-500">
+                  Modelos de e-mail de alta qualidade criados e compartilhados pela comunidade open source via Pull Request no GitHub.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {COMMUNITY_TEMPLATES.map((tpl) => (
+                  <div
+                    key={tpl.id}
+                    className="bg-zinc-950/20 border border-zinc-900/60 hover:border-zinc-800 rounded-2xl p-5 transition-all flex flex-col justify-between h-[350px] group relative animate-fade-in"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div className="w-9 h-9 bg-sky-500/10 border border-sky-500/20 text-sky-400 rounded-xl flex items-center justify-center shrink-0">
+                          <Users className="h-4 w-4" />
+                        </div>
+                        
+                        {tpl.author && (
+                          <a
+                            href={`https://github.com/${tpl.author.github}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-zinc-900 hover:bg-zinc-850 text-[10px] text-zinc-400 hover:text-white font-bold px-3 py-1 rounded-full border border-zinc-850 flex items-center gap-1 transition-all cursor-pointer shadow"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Github className="h-3 w-3 text-zinc-500 group-hover:text-white" />
+                            <span>@{tpl.author.github}</span>
+                          </a>
+                        )}
+                      </div>
+
+                      {/* Mini visual representation of community templates in 3:4 */}
+                      <MiniTemplatePreview template={tpl} />
+
+                      <div className="space-y-0.5">
+                        <h4 className="text-xs font-bold text-zinc-300 group-hover:text-white transition-colors truncate">
+                          {tpl.name}
+                        </h4>
+                        <p className="text-[10px] text-zinc-500 leading-relaxed">
+                          Por: <span className="font-semibold text-zinc-400">{tpl.author?.name || 'Autor'}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="pt-3 border-t border-zinc-900/60 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPreviewTemplate(tpl);
+                          setPreviewVisualIdentity(activeProject.visualIdentity);
+                        }}
+                        className="flex-1 py-2 bg-zinc-900 hover:bg-zinc-850 border border-zinc-850 text-zinc-300 hover:text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        <Eye className="h-3.5 w-3.5 text-sky-400" />
                         Visualizar
                       </button>
 

@@ -1086,6 +1086,77 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
         }
       },
       {
+        id: 'emp_grid',
+        type: 'grid',
+        content: '',
+        styles: {
+          marginBottom: 20
+        },
+        colsCount: 2,
+        gridCells: {
+          '0-0': [
+            {
+              id: 'emp_grid_h1',
+              type: 'heading',
+              content: 'Faturamento Trimestral 💵',
+              styles: {
+                fontSize: 14,
+                fontWeight: 'bold',
+                textColor: '#1e3a8a',
+                marginBottom: 6
+              }
+            },
+            {
+              id: 'emp_grid_t1',
+              type: 'text',
+              content: 'Atingimos a marca de **R$ 2.4M** líquidos, representando um aumento real de receita recorrente anualizada (ARR).',
+              styles: {
+                fontSize: 12,
+                textColor: '#475569',
+                marginBottom: 0
+              }
+            }
+          ],
+          '0-1': [
+            {
+              id: 'emp_grid_h2',
+              type: 'heading',
+              content: 'Retenção & LTV 👥',
+              styles: {
+                fontSize: 14,
+                fontWeight: 'bold',
+                textColor: '#1e3a8a',
+                marginBottom: 6
+              }
+            },
+            {
+              id: 'emp_grid_t2',
+              type: 'text',
+              content: 'A taxa de churn reduziu para **1.8%**, mantendo o Net Revenue Retention (NRR) em impressionantes **112%**.',
+              styles: {
+                fontSize: 12,
+                textColor: '#475569',
+                marginBottom: 0
+              }
+            }
+          ]
+        }
+      },
+      {
+        id: 'emp_img_growth',
+        type: 'image',
+        content: '',
+        src: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=600&auto=format&fit=crop&q=80',
+        alt: 'Business Growth Chart',
+        styles: {
+          width: 536,
+          height: 180,
+          borderRadius: 8,
+          marginBottom: 20,
+          align: 'center'
+        }
+      },
+      {
         id: 'emp_divider',
         type: 'divider',
         content: '',
@@ -1166,7 +1237,7 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
         alt: 'Pizza and Friends',
         styles: {
           width: 536,
-          height: 200,
+          height: 180,
           borderRadius: 16,
           marginBottom: 20,
           align: 'center'
@@ -1187,12 +1258,92 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
       {
         id: 'cas_text',
         type: 'text',
-        content: 'Está na hora daquele nosso reencontro para jogar conversa fora, dar boas risadas e, claro, comer muita pizza!\n\nCombinamos de nos reunir nesta **{{eventTime}}** lá na **{{location}}**.\n\nVai ser um momento super descontraído para relaxar e recarregar as energias para o fim de semana. Confirme sua presença pelo botão abaixo para reservarmos a mesa:',
+        content: 'Está na hora daquele nosso reencontro para jogar conversa fora, dar boas risadas e, claro, comer muita pizza!\n\nCombinamos de nos reunir nesta **{{eventTime}}** lá na **{{location}}**.',
         styles: {
           fontSize: 14,
           textColor: '#92400e',
           align: 'center',
-          marginBottom: 24
+          marginBottom: 20
+        }
+      },
+      {
+        id: 'cas_grid_details',
+        type: 'grid',
+        content: '',
+        styles: {
+          marginBottom: 20
+        },
+        colsCount: 2,
+        gridCells: {
+          '0-0': [
+            {
+              id: 'cas_grid_h1',
+              type: 'heading',
+              content: 'Cardápio Especial 🍕',
+              styles: {
+                fontSize: 13,
+                fontWeight: 'bold',
+                textColor: '#d97706',
+                marginBottom: 4
+              }
+            },
+            {
+              id: 'cas_grid_t1',
+              type: 'text',
+              content: 'Rodízio completo com mais de 20 sabores salgados e doces artesanais assados no forno a lenha.',
+              styles: {
+                fontSize: 11,
+                textColor: '#78350f'
+              }
+            }
+          ],
+          '0-1': [
+            {
+              id: 'cas_grid_h2',
+              type: 'heading',
+              content: 'Como Chegar? 📍',
+              styles: {
+                fontSize: 13,
+                fontWeight: 'bold',
+                textColor: '#d97706',
+                marginBottom: 4
+              }
+            },
+            {
+              id: 'cas_grid_t2',
+              type: 'text',
+              content: 'A {{location}} fica super bem localizada, com estacionamento gratuito no local e fácil acesso por metrô.',
+              styles: {
+                fontSize: 11,
+                textColor: '#78350f'
+              }
+            }
+          ]
+        }
+      },
+      {
+        id: 'cas_img_gathering',
+        type: 'image',
+        content: '',
+        src: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=600&auto=format&fit=crop&q=80',
+        alt: 'Friends laughing and raising glasses',
+        styles: {
+          width: 536,
+          height: 150,
+          borderRadius: 12,
+          marginBottom: 20,
+          align: 'center'
+        }
+      },
+      {
+        id: 'cas_text_invite',
+        type: 'text',
+        content: 'Vai ser um momento super descontraído para relaxar e recarregar as energias para o fim de semana. Confirme sua presença pelo botão abaixo para reservarmos a mesa:',
+        styles: {
+          fontSize: 13,
+          textColor: '#92400e',
+          align: 'center',
+          marginBottom: 20
         }
       },
       {
@@ -1254,7 +1405,7 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
         alt: 'Smart Watch Product',
         styles: {
           width: 536,
-          height: 220,
+          height: 180,
           borderRadius: 12,
           marginBottom: 24,
           align: 'center'
@@ -1280,7 +1431,76 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
           fontSize: 15,
           textColor: '#3b0764',
           align: 'center',
-          marginBottom: 24
+          marginBottom: 20
+        }
+      },
+      {
+        id: 'com_grid_features',
+        type: 'grid',
+        content: '',
+        styles: {
+          marginBottom: 20
+        },
+        colsCount: 2,
+        gridCells: {
+          '0-0': [
+            {
+              id: 'com_feat_h1',
+              type: 'heading',
+              content: 'Bateria de 14 Dias ⚡',
+              styles: {
+                fontSize: 13,
+                fontWeight: 'bold',
+                textColor: '#7c3aed',
+                marginBottom: 4
+              }
+            },
+            {
+              id: 'com_feat_t1',
+              type: 'text',
+              content: 'Esqueça os carregadores diários. Desfrute de autonomia total para suas aventuras e rotina.',
+              styles: {
+                fontSize: 11,
+                textColor: '#581c87'
+              }
+            }
+          ],
+          '0-1': [
+            {
+              id: 'com_feat_h2',
+              type: 'heading',
+              content: 'Sensor Bio-Tracker 🩺',
+              styles: {
+                fontSize: 13,
+                fontWeight: 'bold',
+                textColor: '#7c3aed',
+                marginBottom: 4
+              }
+            },
+            {
+              id: 'com_feat_t2',
+              type: 'text',
+              content: 'Monitoramento contínuo de frequência cardíaca, oxigênio no sangue (SpO2) e qualidade de sono.',
+              styles: {
+                fontSize: 11,
+                textColor: '#581c87'
+              }
+            }
+          ]
+        }
+      },
+      {
+        id: 'com_img_lifestyle',
+        type: 'image',
+        content: '',
+        src: 'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?w=600&auto=format&fit=crop&q=80',
+        alt: 'Smart watch sports tracking',
+        styles: {
+          width: 536,
+          height: 150,
+          borderRadius: 12,
+          marginBottom: 24,
+          align: 'center'
         }
       },
       {
@@ -1566,14 +1786,86 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
         }
       },
       {
-        id: 'news_body',
-        type: 'text',
-        content: '### 🔥 Inteligência Artificial em Produção\nAprenda como otimizar seus modelos LLM locais utilizando compilações WebAssembly e novos compiladores de silício para browsers.\n\n### ⚛️ O Futuro do Frontend\nA nova arquitetura de componentização nativa e as APIs assíncronas do React prometem carregar páginas até 3x mais rápido em dispositivos de entrada.',
+        id: 'news_grid_articles',
+        type: 'grid',
+        content: '',
         styles: {
-          fontSize: 13,
-          textColor: '#334155',
-          align: 'left',
-          marginBottom: 24
+          marginBottom: 20
+        },
+        colsCount: 2,
+        gridCells: {
+          '0-0': [
+            {
+              id: 'news_art1_img',
+              type: 'image',
+              content: '',
+              src: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?w=300&auto=format&fit=crop&q=80',
+              alt: 'AI Neural Network illustration',
+              styles: {
+                width: 250,
+                height: 100,
+                borderRadius: 8,
+                marginBottom: 8,
+                align: 'center'
+              }
+            },
+            {
+              id: 'news_art1_h',
+              type: 'heading',
+              content: 'IA no Browser 🧠',
+              styles: {
+                fontSize: 13,
+                fontWeight: 'bold',
+                textColor: '#1e3a8a',
+                marginBottom: 4
+              }
+            },
+            {
+              id: 'news_art1_t',
+              type: 'text',
+              content: 'Aprenda a otimizar modelos LLM locais utilizando compilações WebAssembly ultra-rápidas.',
+              styles: {
+                fontSize: 11,
+                textColor: '#334155'
+              }
+            }
+          ],
+          '0-1': [
+            {
+              id: 'news_art2_img',
+              type: 'image',
+              content: '',
+              src: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=300&auto=format&fit=crop&q=80',
+              alt: 'React coding code screen',
+              styles: {
+                width: 250,
+                height: 100,
+                borderRadius: 8,
+                marginBottom: 8,
+                align: 'center'
+              }
+            },
+            {
+              id: 'news_art2_h',
+              type: 'heading',
+              content: 'React 19 Hooks ⚛️',
+              styles: {
+                fontSize: 13,
+                fontWeight: 'bold',
+                textColor: '#1e3a8a',
+                marginBottom: 4
+              }
+            },
+            {
+              id: 'news_art2_t',
+              type: 'text',
+              content: 'Nova arquitetura de componentes assíncronos que prometem carregar páginas até 3x mais rápido.',
+              styles: {
+                fontSize: 11,
+                textColor: '#334155'
+              }
+            }
+          ]
         }
       },
       {

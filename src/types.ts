@@ -79,6 +79,10 @@ export interface EmailTemplate {
   };
   updatedAt?: number;
   visualIdentity?: VisualIdentity;
+  author?: {
+    name: string;
+    github: string;
+  };
 }
 
 export interface ReusableComponent {

@@ -1,0 +1,89 @@
+{
+  "id": "comunidade_newsletter",
+  "name": "Newsletter da Comunidade 🚀",
+  "author": {
+    "name": "Guilherme Santos",
+    "github": "guilhermesantos-dev"
+  },
+  "globalStyles": {
+    "backgroundColor": "#0f172a",
+    "containerColor": "#1e293b",
+    "textColor": "#f8fafc",
+    "fontFamily": "Inter, sans-serif",
+    "borderRadius": 12,
+    "padding": 24
+  },
+  "variables": [
+    { "id": "cv1", "key": "userName", "value": "Desenvolvedor", "description": "Nome do usuário" },
+    { "id": "cv2", "key": "projectUrl", "value": "https://github.com/guilhermesantos-dev/montaremail", "description": "Link do repositório" }
+  ],
+  "elements": [
+    {
+      "id": "ce_img",
+      "type": "image",
+      "content": "",
+      "src": "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600&auto=format&fit=crop&q=80",
+      "styles": {
+        "width": 500,
+        "height": 180,
+        "borderRadius": 8,
+        "marginBottom": 16,
+        "align": "center"
+      }
+    },
+    {
+      "id": "ce_head",
+      "type": "heading",
+      "content": "Template da Comunidade 🚀",
+      "styles": {
+        "fontSize": 20,
+        "fontWeight": "bold",
+        "textColor": "#38bdf8",
+        "align": "center",
+        "marginBottom": 8
+      }
+    },
+    {
+      "id": "ce_text",
+      "type": "text",
+      "content": "Olá, {{userName}}!\n\nEste é um modelo compartilhado pela comunidade através de Pull Request. Você pode customizar, reutilizar e exportar o HTML limpo ou o código React Email prontinho.\n\nContribuído com carinho por **Guilherme Santos**.",
+      "styles": {
+        "fontSize": 14,
+        "textColor": "#cbd5e1",
+        "align": "left",
+        "marginBottom": 16
+      }
+    },
+    {
+      "id": "ce_btn",
+      "type": "button",
+      "content": "Ver Repositório no GitHub 💻",
+      "href": "{{projectUrl}}",
+      "styles": {
+        "backgroundColor": "#38bdf8",
+        "textColor": "#0f172a",
+        "borderRadius": 8,
+        "fontSize": 14,
+        "fontWeight": "bold",
+        "paddingTop": 10,
+        "paddingBottom": 10,
+        "paddingLeft": 20,
+        "paddingRight": 20,
+        "align": "center",
+        "marginBottom": 0
+      }
+    }
+  ],
+  "visualIdentity": {
+    "brandColors": [
+      { "id": "cbc1", "name": "Sky Blue", "value": "#38bdf8" },
+      { "id": "cbc2", "name": "Slate", "value": "#1e293b" }
+    ],
+    "colorRules": [],
+    "signatureName": "Guilherme Santos",
+    "signatureRole": "Desenvolvedor Frontend",
+    "signatureCompany": "Comunidade MontarEmail",
+    "signaturePhone": "",
+    "signatureColor": "#38bdf8"
+  }
+}

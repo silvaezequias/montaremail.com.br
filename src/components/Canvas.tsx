@@ -29,7 +29,10 @@ import {
   ChevronRight,
   RefreshCw,
   Clock,
-  Briefcase
+  Briefcase,
+  Edit3,
+  Eye,
+  Columns
 } from 'lucide-react';
 
 interface CanvasProps {
@@ -70,6 +73,7 @@ export default function Canvas({
 
   // State for email client visual simulation
   const [emailClient, setEmailClient] = useState<'default' | 'gmail' | 'outlook' | 'hotmail'>('default');
+  const [canvasMode, setCanvasMode] = useState<'editor' | 'preview' | 'both'>('editor');
 
   const [renderKey, setRenderKey] = useState(0);
   const [isReloading, setIsReloading] = useState(false);
@@ -515,6 +519,205 @@ export default function Canvas({
     : 'Seu e-mail pronto para envio!';
 
   const activeDestinatary = replaceVariables('{{userName}}', variables) || 'cliente@email.com';
+
+  // Render pristine, clean preview elements (hiding all editor outlines, handles, grids indicators)
+  const renderCleanElement = (el: EmailElement): React.ReactNode => {
+    const elStyle = getElementStyles(el);
+    
+    switch (el.type) {
+      case 'heading':
+        return (
+          <h2 style={elStyle} className="font-bold leading-tight m-0">
+            {renderContent(el.content) || 'Título Vazio'}
+          </h2>
+        );
+      case 'text':
+        return (
+          <div style={elStyle} className="space-y-2 leading-relaxed">
+            {el.content.split('\n\n').map((para, i) => (
+              <p key={i} className="m-0">
+                {renderContent(para) || 'Parágrafo Vazio'}
+              </p>
+            ))}
+          </div>
+        );
+      case 'button': {
+        const alignment = el.styles.align || 'center';
+        let alignClass = 'text-center';
+        if (alignment === 'left') alignClass = 'text-left';
+        if (alignment === 'right') alignClass = 'text-right';
+
+        return (
+          <div className={alignClass}>
+            <a
+              href={replaceVariables(el.href || '#', variables)}
+              style={elStyle}
+              className="hover:opacity-90 inline-block font-semibold shadow-xs"
+              onClick={(e) => e.preventDefault()}
+            >
+              {renderContent(el.content) || 'Clique Aqui'}
+            </a>
+          </div>
+        );
+      }
+      case 'image': {
+        const imgSrc = replaceVariables(el.src || '', variables) || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=600&auto=format&fit=crop';
+        const alignment = el.styles.align || 'center';
+        let alignClass = 'flex justify-center';
+        if (alignment === 'left') alignClass = 'flex justify-start';
+        if (alignment === 'right') alignClass = 'flex justify-end';
+
+        const imageTag = (
+          <img
+            src={imgSrc}
+            alt={el.alt || 'Template Image'}
+            style={{
+              width: el.styles.width ? `${el.styles.width}px` : '100%',
+              height: el.styles.height ? `${el.styles.height}px` : 'auto',
+              borderRadius: el.styles.borderRadius ? `${el.styles.borderRadius}px` : '0px',
+              objectFit: 'cover',
+            }}
+            className="max-w-full"
+            referrerPolicy="no-referrer"
+          />
+        );
+
+        return (
+          <div className={alignClass} style={{ marginTop: el.styles.marginTop, marginBottom: el.styles.marginBottom }}>
+            {el.href ? (
+              <a
+                href={replaceVariables(el.href, variables)}
+                onClick={(e) => e.preventDefault()}
+                className="block"
+              >
+                {imageTag}
+              </a>
+            ) : (
+              imageTag
+            )}
+          </div>
+        );
+      }
+      case 'link':
+        return (
+          <div style={{ textAlign: el.styles.align || 'left', marginTop: el.styles.marginTop, marginBottom: el.styles.marginBottom }}>
+            <a
+              href={replaceVariables(el.href || '#', variables)}
+              style={elStyle}
+              className="underline hover:opacity-85 font-medium"
+              onClick={(e) => e.preventDefault()}
+            >
+              {renderContent(el.content) || 'Link Clicável'}
+            </a>
+          </div>
+        );
+      case 'divider':
+        return (
+          <hr
+            style={{
+              borderColor: el.styles.borderColor || '#e2e8f0',
+              borderWidth: el.styles.borderWidth || 1,
+              borderStyle: 'solid',
+              marginTop: el.styles.marginTop !== undefined ? `${el.styles.marginTop}px` : '12px',
+              marginBottom: el.styles.marginBottom !== undefined ? `${el.styles.marginBottom}px` : '20px',
+            }}
+          />
+        );
+      case 'spacer':
+        return (
+          <div
+            style={{
+              height: `${el.styles.height || 24}px`,
+            }}
+          />
+        );
+      case 'container': {
+        const childrenList = el.children || [];
+        return (
+          <div style={elStyle} className="w-full">
+            <div className="space-y-2">
+              {childrenList.map((child) => (
+                <div key={child.id}>{renderCleanElement(child)}</div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+      case 'grid': {
+        const rows = el.rowsCount || 1;
+        const cols = el.colsCount || 2;
+        const gridCells = el.gridCells || {};
+        
+        return (
+          <div style={elStyle} className="w-full">
+            <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+              {Array.from({ length: rows }).map((_, r) => (
+                <React.Fragment key={r}>
+                  {Array.from({ length: cols }).map((_, c) => {
+                    const cellKey = `${r}-${c}`;
+                    const cellElements = gridCells[cellKey] || [];
+                    return (
+                      <div key={cellKey} className="space-y-1.5 flex flex-col justify-start">
+                        {cellElements.map((child) => (
+                          <div key={child.id}>{renderCleanElement(child)}</div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+        );
+      }
+      default:
+        return null;
+    }
+  };
+
+  const cleanEmailPreview = (
+    <div
+      style={{
+        backgroundColor: globalStyles.backgroundColor,
+        fontFamily: globalStyles.fontFamily,
+        minHeight: '340px',
+      }}
+      className={`p-6 flex flex-col justify-start ${
+        globalStyles.bodyAlignment === 'left' ? 'items-start' : globalStyles.bodyAlignment === 'right' ? 'items-end' : 'items-center'
+      }`}
+    >
+      {/* Core Card Container */}
+      <div
+        style={{
+          backgroundColor: globalStyles.containerColor,
+          borderRadius: `${globalStyles.borderRadius}px`,
+          padding: `${globalStyles.padding}px`,
+          color: globalStyles.textColor,
+          width: '100%',
+          maxWidth: globalStyles.hasWidthLimit !== false ? `${globalStyles.bodyWidth || 600}px` : '100%',
+          marginTop: `${globalStyles.bodyMarginTop ?? 40}px`,
+          marginBottom: `${globalStyles.bodyMarginBottom ?? 40}px`,
+          border: '1px solid rgba(255,255,255,0.06)',
+        }}
+        className="shadow-2xl flex flex-col"
+      >
+        {elements.length === 0 ? (
+          <div className="py-16 text-center text-zinc-500 flex flex-col items-center justify-center gap-2">
+            <Mail className="h-10 w-10 text-zinc-600 animate-pulse" />
+            <p className="text-sm font-semibold text-zinc-400">Nenhum conteúdo no template</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {elements.map((el) => (
+              <div key={el.id} className="relative">
+                {renderCleanElement(el)}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   const coreEmailDropArea = (
     <div
