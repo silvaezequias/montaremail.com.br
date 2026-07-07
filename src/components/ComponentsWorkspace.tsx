@@ -17,7 +17,16 @@ import {
   Eye, 
   Laptop, 
   Smartphone, 
-  Maximize2 
+  Maximize2,
+  Heading as HeadingIcon,
+  Type,
+  Square,
+  Image,
+  Link as LinkIcon,
+  Minus,
+  GripVertical,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 
 interface ComponentsWorkspaceProps {
@@ -40,6 +49,7 @@ export default function ComponentsWorkspace({
   const [selectedCompId, setSelectedCompId] = useState<string | null>(
     reusableComponents.length > 0 ? reusableComponents[0].id : null
   );
+  const [expandedCompIds, setExpandedCompIds] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
   
   // Creation form state
@@ -57,6 +67,290 @@ export default function ComponentsWorkspace({
 
   // Find active component
   const activeComponent = reusableComponents.find((c) => c.id === selectedCompId);
+
+  // Sub-elements state for nested components inside container or grid layout
+  const [selectedSubElementId, setSelectedSubElementId] = useState<string | null>(null);
+
+  // Safe recursive helper to find a nested element
+  const deepFindElement = (elements: EmailElement[], targetId: string | null): EmailElement | undefined => {
+    if (!targetId) return undefined;
+    for (const el of elements) {
+      if (el.id === targetId) return el;
+      if (el.type === 'container' && el.children) {
+        const found = deepFindElement(el.children, targetId);
+        if (found) return found;
+      }
+      if (el.type === 'grid' && el.gridCells) {
+        for (const cellElements of Object.values(el.gridCells)) {
+          const found = deepFindElement(cellElements, targetId);
+          if (found) return found;
+        }
+      }
+    }
+    return undefined;
+  };
+
+  // Currently active sub-element or fallback to root element of active component
+  const activeSubElement = activeComponent
+    ? (selectedSubElementId ? (deepFindElement([activeComponent.element], selectedSubElementId) || activeComponent.element) : activeComponent.element)
+    : null;
+
+  // Safe recursive update of sub-elements
+  const deepUpdateSubElement = (elements: EmailElement[], updated: EmailElement): EmailElement[] => {
+    return elements.map((el) => {
+      if (el.id === updated.id) return updated;
+      if (el.type === 'container' && el.children) {
+        return {
+          ...el,
+          children: deepUpdateSubElement(el.children, updated)
+        };
+      }
+      if (el.type === 'grid' && el.gridCells) {
+        const updatedCells: Record<string, EmailElement[]> = {};
+        for (const [key, cellElements] of Object.entries(el.gridCells)) {
+          updatedCells[key] = deepUpdateSubElement(cellElements, updated);
+        }
+        return {
+          ...el,
+          gridCells: updatedCells
+        };
+      }
+      return el;
+    });
+  };
+
+  const handleUpdateSubElement = (updated: EmailElement) => {
+    if (!activeComponent) return;
+    if (updated.id === activeComponent.element.id) {
+      handleUpdateElement(updated);
+    } else {
+      const root = activeComponent.element;
+      const updatedRoot = { ...root };
+      if (root.children) {
+        updatedRoot.children = deepUpdateSubElement(root.children, updated);
+      }
+      if (root.gridCells) {
+        const updatedCells: Record<string, EmailElement[]> = {};
+        for (const [key, cellElements] of Object.entries(root.gridCells)) {
+          updatedCells[key] = deepUpdateSubElement(cellElements, updated);
+        }
+        updatedRoot.gridCells = updatedCells;
+      }
+      handleUpdateElement(updatedRoot);
+    }
+  };
+
+  // Safe recursive deletion of sub-elements
+  const deepDeleteSubElement = (elements: EmailElement[], idToDelete: string): EmailElement[] => {
+    return elements
+      .filter((el) => el.id !== idToDelete)
+      .map((el) => {
+        if (el.type === 'container' && el.children) {
+          return {
+            ...el,
+            children: deepDeleteSubElement(el.children, idToDelete)
+          };
+        }
+        if (el.type === 'grid' && el.gridCells) {
+          const updatedCells: Record<string, EmailElement[]> = {};
+          for (const [key, cellElements] of Object.entries(el.gridCells)) {
+            updatedCells[key] = deepDeleteSubElement(cellElements, idToDelete);
+          }
+          return {
+            ...el,
+            gridCells: updatedCells
+          };
+        }
+        return el;
+      });
+  };
+
+  const handleDeleteSubElement = (idToDelete: string) => {
+    if (!activeComponent) return;
+    if (idToDelete === activeComponent.element.id) {
+      onDeleteComponent(activeComponent.id);
+      setSelectedSubElementId(null);
+    } else {
+      const root = activeComponent.element;
+      const updatedRoot = { ...root };
+      if (root.children) {
+        updatedRoot.children = deepDeleteSubElement(root.children, idToDelete);
+      }
+      if (root.gridCells) {
+        const updatedCells: Record<string, EmailElement[]> = {};
+        for (const [key, cellElements] of Object.entries(root.gridCells)) {
+          updatedCells[key] = deepDeleteSubElement(cellElements, idToDelete);
+        }
+        updatedRoot.gridCells = updatedCells;
+      }
+      handleUpdateElement(updatedRoot);
+      setSelectedSubElementId(null);
+    }
+  };
+
+  // Helper to construct a new default element inside container/grid of component
+  const createDefaultElement = (type: ElementType): EmailElement => {
+    const id = `${type}_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
+    let content = 'Novo Bloco';
+    let styles: any = {};
+
+    switch (type) {
+      case 'heading':
+        content = 'Seu Novo Título 👑';
+        styles = { fontSize: 18, fontWeight: 'bold', textColor: '#18181b', marginBottom: 12 };
+        break;
+      case 'text':
+        content = 'Este é um parágrafo de texto editável.';
+        styles = { fontSize: 14, textColor: '#4b5563', marginBottom: 16 };
+        break;
+      case 'button':
+        content = 'Clique Aqui';
+        styles = { backgroundColor: '#4f46e5', textColor: '#ffffff', borderRadius: 8, fontSize: 14, fontWeight: 'semibold', align: 'center', paddingTop: 10, paddingBottom: 10, paddingLeft: 20, paddingRight: 20 };
+        break;
+      case 'image':
+        content = '';
+        styles = { width: 200, align: 'center', borderRadius: 8 };
+        break;
+      case 'link':
+        content = 'Clique para ver mais';
+        styles = { textColor: '#4f46e5', fontSize: 13, align: 'center' };
+        break;
+      case 'divider':
+        content = '';
+        styles = { borderColor: '#e4e4e7', marginTop: 12, marginBottom: 12 };
+        break;
+      case 'spacer':
+        content = '';
+        styles = { height: 24 };
+        break;
+      case 'container':
+        content = '';
+        styles = { backgroundColor: '#f4f4f5', borderRadius: 12, paddingTop: 16, paddingBottom: 16, paddingLeft: 16, paddingRight: 16 };
+        break;
+      case 'grid':
+        content = '';
+        styles = { paddingTop: 12, paddingBottom: 12 };
+        break;
+    }
+
+    const newEl: EmailElement = { id, type, content, styles };
+    if (type === 'container') {
+      newEl.children = [];
+    } else if (type === 'grid') {
+      newEl.rowsCount = 1;
+      newEl.colsCount = 2;
+      newEl.gridCells = {
+        '0-0': [],
+        '0-1': [],
+      };
+    }
+    return newEl;
+  };
+
+  // Safe recursive helper to insert a new element inside container/grid of component
+  const deepInsertElement = (
+    elements: EmailElement[],
+    targetId: string,
+    newEl: EmailElement,
+    cellKey?: string
+  ): EmailElement[] => {
+    return elements.map((el) => {
+      if (el.id === targetId) {
+        if (el.type === 'container') {
+          return {
+            ...el,
+            children: [...(el.children || []), newEl],
+          };
+        }
+        if (el.type === 'grid' && cellKey) {
+          const cells = el.gridCells || {};
+          return {
+            ...el,
+            gridCells: {
+              ...cells,
+              [cellKey]: [...(cells[cellKey] || []), newEl],
+            },
+          };
+        }
+      }
+
+      if (el.type === 'container' && el.children) {
+        return {
+          ...el,
+          children: deepInsertElement(el.children, targetId, newEl, cellKey),
+        };
+      }
+
+      if (el.type === 'grid' && el.gridCells) {
+        const updatedCells: Record<string, EmailElement[]> = {};
+        for (const [key, cellElements] of Object.entries(el.gridCells)) {
+          updatedCells[key] = deepInsertElement(cellElements, targetId, newEl, cellKey);
+        }
+        return {
+          ...el,
+          gridCells: updatedCells,
+        };
+      }
+
+      return el;
+    });
+  };
+
+  const handleDropElement = (type: ElementType, targetId: string, cellKey?: string) => {
+    if (!activeComponent) return;
+    const newEl = createDefaultElement(type);
+
+    if (targetId === activeComponent.element.id) {
+      const root = activeComponent.element;
+      if (root.type === 'container') {
+        const updatedRoot = {
+          ...root,
+          children: [...(root.children || []), newEl],
+        };
+        handleUpdateElement(updatedRoot);
+        setSelectedSubElementId(newEl.id);
+      } else if (root.type === 'grid' && cellKey) {
+        const cells = root.gridCells || {};
+        const updatedRoot = {
+          ...root,
+          gridCells: {
+            ...cells,
+            [cellKey]: [...(cells[cellKey] || []), newEl],
+          },
+        };
+        handleUpdateElement(updatedRoot);
+        setSelectedSubElementId(newEl.id);
+      }
+    } else {
+      const root = activeComponent.element;
+      const updatedRoot = { ...root };
+      if (root.children) {
+        updatedRoot.children = deepInsertElement(root.children, targetId, newEl, cellKey);
+      }
+      if (root.gridCells) {
+        const updatedCells: Record<string, EmailElement[]> = {};
+        for (const [key, cellElements] of Object.entries(root.gridCells)) {
+          updatedCells[key] = deepInsertElement(cellElements, targetId, newEl, cellKey);
+        }
+        updatedRoot.gridCells = updatedCells;
+      }
+      handleUpdateElement(updatedRoot);
+      setSelectedSubElementId(newEl.id);
+    }
+  };
+
+  // PALETTE_ELEMENTS lists the available elements to drag or click
+  const PALETTE_ELEMENTS = [
+    { type: 'heading', label: 'Título (H1)', icon: <HeadingIcon className="h-4 w-4" />, color: 'text-amber-400' },
+    { type: 'text', label: 'Parágrafo (Text)', icon: <Type className="h-4 w-4" />, color: 'text-emerald-400' },
+    { type: 'button', label: 'Botão (CTA)', icon: <Square className="h-4 w-4" />, color: 'text-indigo-400' },
+    { type: 'image', label: 'Imagem (Img)', icon: <Image className="h-4 w-4" />, color: 'text-pink-400' },
+    { type: 'link', label: 'Hiperlink (Link)', icon: <LinkIcon className="h-4 w-4" />, color: 'text-sky-400' },
+    { type: 'divider', label: 'Divisor (Hr)', icon: <Minus className="h-4 w-4" />, color: 'text-zinc-400' },
+    { type: 'spacer', label: 'Espaço (Spacer)', icon: <Maximize2 className="h-4 w-4" />, color: 'text-purple-400' },
+    { type: 'container', label: 'Layout Container', icon: <Layout className="h-4 w-4" />, color: 'text-blue-400' },
+    { type: 'grid', label: 'Layout Grid', icon: <Layout className="h-4 w-4" />, color: 'text-rose-400' },
+  ];
 
   // Filtered components
   const filteredComponents = reusableComponents.filter((c) =>
@@ -180,6 +474,248 @@ export default function ComponentsWorkspace({
     return styleObj;
   };
 
+  // Recursive nested builder/renderer for elements inside Components Workspace
+  const renderElementEditable = (el: EmailElement, parentId?: string, cellKey?: string): React.ReactNode => {
+    const isSelected = el.id === selectedSubElementId || (activeComponent && el.id === activeComponent.element.id && !selectedSubElementId);
+    const elStyle = getStyles(el);
+
+    const handleSelect = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setSelectedSubElementId(el.id);
+    };
+
+    const renderInnerContent = () => {
+      switch (el.type) {
+        case 'heading':
+          return (
+            <h1 style={elStyle} className="font-bold leading-tight m-0">
+              {parseFormattedTextToReact(el.content) || 'Título Vazio'}
+            </h1>
+          );
+        case 'text':
+          return (
+            <p style={elStyle} className="whitespace-pre-line m-0">
+              {parseFormattedTextToReact(el.content) || 'Texto Vazio'}
+            </p>
+          );
+        case 'button':
+          return (
+            <div className={`flex justify-${el.styles.align === 'center' ? 'center' : el.styles.align === 'right' ? 'end' : 'start'}`}>
+              <a 
+                href={el.href || '#'} 
+                style={elStyle}
+                onClick={(e) => e.preventDefault()}
+                className="inline-block"
+              >
+                {parseFormattedTextToReact(el.content) || 'Botão CTA'}
+              </a>
+            </div>
+          );
+        case 'image':
+          return (
+            <div className={`flex justify-${el.styles.align === 'center' ? 'center' : el.styles.align === 'right' ? 'end' : 'start'}`}>
+              <img 
+                src={el.src || 'https://images.unsplash.com/photo-1579202673506-ca3ce28943ef?w=400&auto=format&fit=crop&q=60'} 
+                alt={el.alt || 'Imagem do Componente'} 
+                style={elStyle}
+                referrerPolicy="no-referrer"
+                className="max-w-full"
+              />
+            </div>
+          );
+        case 'link':
+          return (
+            <div className={`flex justify-${el.styles.align === 'center' ? 'center' : el.styles.align === 'right' ? 'end' : 'start'}`}>
+              <a 
+                href={el.href || '#'} 
+                style={elStyle}
+                onClick={(e) => e.preventDefault()}
+                className="hover:underline text-xs"
+              >
+                {parseFormattedTextToReact(el.content) || 'Hiperlink'}
+              </a>
+            </div>
+          );
+        case 'divider':
+          return (
+            <div className="py-2 w-full">
+              <hr style={elStyle} />
+            </div>
+          );
+        case 'spacer':
+          return (
+            <div style={elStyle} className="bg-zinc-400/5 border border-dashed border-zinc-800/25 rounded flex items-center justify-center text-[9px] text-zinc-500 font-mono">
+              Espaço ({el.styles.height || 24}px)
+            </div>
+          );
+        case 'container': {
+          const childrenList = el.children || [];
+          return (
+            <div 
+              style={elStyle} 
+              className="w-full min-h-[60px] border border-dashed border-zinc-700/50 rounded-xl p-4 bg-zinc-900/5 transition-all relative group/container"
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const type = e.dataTransfer.getData('application/react-email-builder-type') as ElementType;
+                if (type) {
+                  handleDropElement(type, el.id);
+                }
+              }}
+            >
+              <div className="absolute -top-2 right-2 px-1 py-0.5 bg-zinc-850 border border-zinc-800 rounded text-[7px] text-zinc-400 uppercase tracking-wider font-mono opacity-60 group-hover/container:opacity-100 transition-opacity">
+                📦 Container
+              </div>
+              <div className="space-y-3 min-h-[40px]">
+                {childrenList.length === 0 ? (
+                  <div className="text-[10px] text-zinc-500 text-center py-4 border border-dashed border-zinc-800 rounded-lg">
+                    Arraste ou insira elementos aqui
+                  </div>
+                ) : (
+                  childrenList.map((child) => (
+                    <React.Fragment key={child.id}>
+                      {renderElementEditable(child, el.id)}
+                    </React.Fragment>
+                  ))
+                )}
+              </div>
+
+              {/* Quick Toolbar Inside Container */}
+              <div className="mt-3 pt-2 border-t border-zinc-800/50 flex items-center justify-between flex-wrap gap-1">
+                <span className="text-[8px] text-zinc-500 font-mono uppercase font-bold">Inserir:</span>
+                <div className="flex gap-1 flex-wrap">
+                  {(['heading', 'text', 'button', 'image', 'spacer'] as ElementType[]).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDropElement(t, el.id);
+                      }}
+                      className="text-[8px] bg-zinc-850 hover:bg-zinc-800 text-zinc-400 hover:text-white px-1.5 py-0.5 rounded border border-zinc-800 cursor-pointer transition-colors"
+                    >
+                      +{t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        }
+        case 'grid': {
+          const rows = el.rowsCount || 1;
+          const cols = el.colsCount || 2;
+          const gridCells = el.gridCells || {};
+          return (
+            <div style={elStyle} className="w-full border border-dashed border-zinc-700/50 rounded-xl p-3 bg-zinc-950/10 relative group/grid">
+              <div className="absolute -top-2 right-2 px-1 py-0.5 bg-zinc-850 border border-zinc-800 rounded text-[7px] text-zinc-400 uppercase tracking-wider font-mono opacity-60 group-hover/grid:opacity-100 transition-opacity">
+                🎛️ Grid {rows}x{cols}
+              </div>
+              <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+                {Array.from({ length: rows }).map((_, r) => (
+                  <React.Fragment key={r}>
+                    {Array.from({ length: cols }).map((_, c) => {
+                      const cellKey = `${r}-${c}`;
+                      const cellElements = gridCells[cellKey] || [];
+                      return (
+                        <div
+                          key={cellKey}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const type = e.dataTransfer.getData('application/react-email-builder-type') as ElementType;
+                            if (type) {
+                              handleDropElement(type, el.id, cellKey);
+                            }
+                          }}
+                          className="border border-zinc-850 bg-zinc-900/10 p-2.5 rounded-lg space-y-2 min-h-[100px] flex flex-col justify-between"
+                        >
+                          <div>
+                            <div className="text-[7px] text-zinc-500 font-mono font-bold uppercase mb-1">Célula {r+1},{c+1}</div>
+                            <div className="space-y-2">
+                              {cellElements.length === 0 ? (
+                                <div className="text-[8px] text-zinc-600 text-center py-3 border border-dashed border-zinc-850/60 rounded">
+                                  Vazio
+                                </div>
+                              ) : (
+                                cellElements.map((child) => (
+                                  <React.Fragment key={child.id}>
+                                    {renderElementEditable(child, el.id, cellKey)}
+                                  </React.Fragment>
+                                ))
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Quick Toolbar Inside Grid Cell */}
+                          <div className="mt-2 pt-2 border-t border-zinc-800/40 flex items-center justify-between flex-wrap gap-1">
+                            <span className="text-[7px] text-zinc-500 font-mono font-bold uppercase">Inserir:</span>
+                            <div className="flex gap-0.5 flex-wrap">
+                              {(['heading', 'text', 'button', 'image'] as ElementType[]).map((t) => (
+                                <button
+                                  key={t}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDropElement(t, el.id, cellKey);
+                                  }}
+                                  className="text-[7px] bg-zinc-850 hover:bg-zinc-800 text-zinc-400 hover:text-white px-1 py-0.5 rounded border border-zinc-800 cursor-pointer transition-colors"
+                                >
+                                  +{t}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+          );
+        }
+        default:
+          return null;
+      }
+    };
+
+    return (
+      <div
+        onClick={handleSelect}
+        className={`group/el relative p-3 rounded-xl border transition-all cursor-pointer ${
+          isSelected 
+            ? 'border-indigo-500 bg-indigo-500/5 shadow-[0_0_15px_rgba(99,102,241,0.15)] ring-1 ring-indigo-500/50' 
+            : 'border-transparent hover:border-zinc-800 hover:bg-zinc-900/40'
+        }`}
+      >
+        {/* Selection Indicator Tag */}
+        {isSelected && (
+          <div className="absolute -top-2 -left-2 px-1.5 py-0.5 bg-indigo-600 border border-indigo-400 text-[8px] text-white font-bold rounded shadow-lg uppercase tracking-wider font-mono animate-scale-in z-10 flex items-center gap-1">
+            <Check className="h-2 w-2" /> {el.type}
+          </div>
+        )}
+
+        {/* Hover element tag */}
+        {!isSelected && (
+          <div className="absolute -top-2.5 -right-2 hidden group-hover/el:flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded px-1 py-0.5 shadow-md z-10">
+            <span className="text-[7px] text-zinc-500 font-mono uppercase tracking-wider font-bold">{el.type}</span>
+          </div>
+        )}
+
+        {renderInnerContent()}
+      </div>
+    );
+  };
+
   return (
     <div className="flex-1 flex overflow-hidden h-full bg-[#0a0a0a]">
       
@@ -243,22 +779,6 @@ export default function ComponentsWorkspace({
                   autoFocus
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-medium text-zinc-400">Tipo do Bloco</label>
-                <select
-                  value={newCompType}
-                  onChange={(e) => setNewCompType(e.target.value as ElementType)}
-                  className="w-full text-xs bg-zinc-950 border border-zinc-800 rounded-lg p-1.5 text-zinc-200 focus:outline-none focus:border-indigo-500"
-                >
-                  <option value="heading">Título (Heading)</option>
-                  <option value="text">Texto (Paragraph)</option>
-                  <option value="button">Botão (CTA Button)</option>
-                  <option value="image">Imagem (Image)</option>
-                  <option value="link">Hiperlink (Link)</option>
-                  <option value="divider">Divisor (Hr)</option>
-                  <option value="spacer">Espaçador (Spacer)</option>
-                </select>
-              </div>
               <div className="flex justify-end gap-1.5 pt-1">
                 <button
                   type="button"
@@ -285,54 +805,105 @@ export default function ComponentsWorkspace({
           ) : (
             filteredComponents.map((comp) => {
               const isActive = comp.id === selectedCompId;
+              const isExpanded = !!expandedCompIds[comp.id];
               return (
-                <div
-                  key={comp.id}
-                  onClick={() => {
-                    setSelectedCompId(comp.id);
-                    setIsEditingName(false);
-                  }}
-                  className={`group flex items-center justify-between p-3 rounded-xl border text-left cursor-pointer transition-all ${
-                    isActive
-                      ? 'bg-indigo-600/10 border-indigo-500/50 text-indigo-300'
-                      : 'bg-zinc-900 border-zinc-850 hover:bg-zinc-855 text-zinc-400 hover:text-zinc-200'
-                  }`}
-                >
-                  <div className="min-w-0 flex-1 pr-1">
-                    <span className={`block text-xs font-semibold truncate ${isActive ? 'text-indigo-200' : 'text-zinc-200'}`}>
-                      {comp.name}
-                    </span>
-                    <span className="inline-block text-[9px] font-mono text-zinc-500 mt-0.5 capitalize bg-zinc-950 px-1.5 py-0.5 rounded border border-zinc-800">
-                      {comp.element.type}
-                    </span>
-                  </div>
-                  <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-all">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleExportSingleComponent(comp);
-                      }}
-                      className="p-1 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded"
-                      title="Exportar JSON"
-                    >
-                      <Download className="h-3 w-3" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm(`Tem certeza de que deseja excluir o componente "${comp.name}"?`)) {
-                          onDeleteComponent(comp.id);
-                          if (selectedCompId === comp.id) {
-                            setSelectedCompId(reusableComponents.length > 1 ? reusableComponents[0].id : null);
+                <div key={comp.id} className="space-y-1">
+                  <div
+                    onClick={() => {
+                      setSelectedCompId(comp.id);
+                      setIsEditingName(false);
+                    }}
+                    className={`group flex items-center justify-between p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                      isActive
+                        ? 'bg-indigo-600/10 border-indigo-500/50 text-indigo-300'
+                        : 'bg-zinc-900 border-zinc-850 hover:bg-zinc-855 text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0 flex-1 pr-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedCompIds(prev => ({
+                            ...prev,
+                            [comp.id]: !prev[comp.id]
+                          }));
+                        }}
+                        className="p-1 hover:bg-zinc-850 text-zinc-500 hover:text-zinc-350 rounded shrink-0 transition-colors"
+                        title={isExpanded ? "Recolher estrutura" : "Expandir estrutura"}
+                      >
+                        {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                      </button>
+                      
+                      <div className="min-w-0 flex-1">
+                        <span className={`block text-xs font-semibold truncate ${isActive ? 'text-indigo-200' : 'text-zinc-200'}`}>
+                          {comp.name}
+                        </span>
+                        <span className="inline-block text-[9px] font-mono text-zinc-500 mt-0.5 capitalize bg-zinc-950 px-1.5 py-0.5 rounded border border-zinc-800">
+                          {comp.element.type}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-all shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleExportSingleComponent(comp);
+                        }}
+                        className="p-1 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded"
+                        title="Exportar JSON"
+                      >
+                        <Download className="h-3 w-3" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Tem certeza de que deseja excluir o componente "${comp.name}"?`)) {
+                            onDeleteComponent(comp.id);
+                            if (selectedCompId === comp.id) {
+                              setSelectedCompId(reusableComponents.length > 1 ? reusableComponents[0].id : null);
+                            }
                           }
-                        }
-                      }}
-                      className="p-1 hover:bg-red-950/50 text-zinc-400 hover:text-red-400 rounded"
-                      title="Excluir Componente"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
+                        }}
+                        className="p-1 hover:bg-red-950/50 text-zinc-400 hover:text-red-400 rounded"
+                        title="Excluir Componente"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
                   </div>
+                  
+                  {isExpanded && (
+                    <div className="ml-3 pl-3 py-1.5 border-l border-zinc-800 space-y-1 animate-fade-in text-[10px] bg-zinc-950/20 rounded-r-lg p-2 text-zinc-400">
+                      <span className="text-zinc-500 block uppercase tracking-wider font-bold text-[8px] mb-1">
+                        Estrutura Interna
+                      </span>
+                      {comp.element.type === 'container' && comp.element.children && comp.element.children.length > 0 ? (
+                        comp.element.children.map((child, index) => (
+                          <div key={child.id} className="flex items-center gap-2 text-zinc-400 py-0.5">
+                            <span className="text-zinc-600 font-mono text-[8px]">#{index + 1}</span>
+                            <span className="capitalize font-semibold text-zinc-300">{child.type}</span>
+                            {child.content && (
+                              <span className="text-zinc-500 truncate max-w-[120px] italic">
+                                "{child.content}"
+                              </span>
+                            )}
+                          </div>
+                        ))
+                      ) : comp.element.type === 'grid' && comp.element.gridCells ? (
+                        <div className="text-zinc-500 italic text-[9px] py-0.5">Layout Grid (Colunas lado a lado)</div>
+                      ) : (
+                        <div className="text-zinc-400 py-0.5">
+                          <span className="capitalize font-semibold text-zinc-300">{comp.element.type}</span>
+                          {comp.element.content && (
+                            <span className="text-zinc-500 truncate max-w-[120px] italic ml-1">
+                              "{comp.element.content}"
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })
@@ -434,8 +1005,43 @@ export default function ComponentsWorkspace({
               </div>
             </div>
 
-            {/* Split layout: Live Preview on Left, Editing Panel immediately next to it on the Right */}
+            {/* Split layout: Elements Palette on Left, Live Preview in Center, Editing Panel on Right */}
             <div className="flex-1 flex flex-col lg:flex-row h-full overflow-hidden bg-zinc-950">
+              
+              {/* Left-side Palette of Draggable Elements */}
+              <div className="w-56 shrink-0 border-r border-zinc-900 bg-[#0c0c0c] flex flex-col h-full overflow-hidden">
+                <div className="p-3 border-b border-zinc-900">
+                  <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Paleta de Elementos</h4>
+                  <p className="text-[9px] text-zinc-500 mt-0.5">Arraste para o bloco ou use os botões rápidos de inserção.</p>
+                </div>
+                <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                  {PALETTE_ELEMENTS.map((item) => (
+                    <div
+                      key={item.type}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('application/react-email-builder-type', item.type);
+                      }}
+                      onClick={() => handleDropElement(item.type as ElementType, activeComponent.element.id)}
+                      className="group flex items-center gap-2.5 p-2 bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 hover:border-zinc-700 rounded-xl cursor-grab active:cursor-grabbing transition-all hover:translate-x-0.5 active:scale-[0.98]"
+                      title="Arraste para um Container/Grid ou clique para inserir"
+                    >
+                      <div className={`p-1.5 bg-zinc-950 rounded-lg group-hover:bg-zinc-900 transition-colors border border-zinc-800 ${item.color}`}>
+                        {item.icon}
+                      </div>
+                      <div className="min-w-0">
+                        <span className="block text-xs font-semibold text-zinc-200">{item.label}</span>
+                        <span className="block text-[8px] text-zinc-500 font-mono capitalize">{item.type}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="p-3 bg-[#0a0a0a] border-t border-zinc-900 text-[8px] text-zinc-500 font-mono flex flex-col gap-1">
+                  <span>💡 Dica:</span>
+                  <span>Você pode clicar para adicionar ou arrastar para as áreas pontilhadas.</span>
+                </div>
+              </div>
+
               {/* Isolated Canvas Stage */}
               <div className="flex-1 overflow-y-auto p-6 flex justify-center items-center relative bg-zinc-950 bg-radial-gradient">
                 {/* Outer template canvas simulator with responsive devices */}
@@ -452,78 +1058,17 @@ export default function ComponentsWorkspace({
                     <span>largura: {previewDevice === 'mobile' ? '360px' : '600px'}</span>
                   </div>
  
-                  <div className="p-10 flex-1 flex flex-col justify-center items-center min-h-0">
+                  <div className="p-6 flex-1 flex flex-col justify-center items-center min-h-0 overflow-y-auto">
                     {/* The Component Render Box itself */}
-                    <div className="w-full relative border border-dashed border-indigo-500/20 p-6 rounded-xl hover:border-indigo-500/40 transition-colors group">
-                      {/* Visual Tag */}
-                      <span className="absolute -top-2.5 left-4 px-1.5 py-0.5 bg-indigo-600 text-[8px] text-white font-bold rounded uppercase tracking-wider pointer-events-none opacity-40 group-hover:opacity-100 transition-opacity">
-                        {activeComponent.element.type}
-                      </span>
- 
+                    <div className="w-full relative">
                       {/* RENDER LOGIC */}
-                      {activeComponent.element.type === 'heading' && (
-                        <h1 style={getStyles(activeComponent.element)}>
-                          {parseFormattedTextToReact(activeComponent.element.content)}
-                        </h1>
-                      )}
- 
-                      {activeComponent.element.type === 'text' && (
-                        <p style={getStyles(activeComponent.element)} className="whitespace-pre-line">
-                          {parseFormattedTextToReact(activeComponent.element.content)}
-                        </p>
-                      )}
- 
-                      {activeComponent.element.type === 'button' && (
-                        <div className={`flex justify-${activeComponent.element.styles.align === 'center' ? 'center' : activeComponent.element.styles.align === 'right' ? 'end' : 'start'}`}>
-                          <a 
-                            href={activeComponent.element.href || '#'} 
-                            style={getStyles(activeComponent.element)}
-                            onClick={(e) => e.preventDefault()}
-                          >
-                            {parseFormattedTextToReact(activeComponent.element.content)}
-                          </a>
-                        </div>
-                      )}
- 
-                      {activeComponent.element.type === 'image' && (
-                        <div className={`flex justify-${activeComponent.element.styles.align === 'center' ? 'center' : activeComponent.element.styles.align === 'right' ? 'end' : 'start'}`}>
-                          <img 
-                            src={activeComponent.element.src} 
-                            alt={activeComponent.element.alt} 
-                            style={getStyles(activeComponent.element)}
-                            referrerPolicy="no-referrer"
-                          />
-                        </div>
-                      )}
- 
-                      {activeComponent.element.type === 'link' && (
-                        <div className={`flex justify-${activeComponent.element.styles.align === 'center' ? 'center' : activeComponent.element.styles.align === 'right' ? 'end' : 'start'}`}>
-                          <a 
-                            href={activeComponent.element.href || '#'} 
-                            style={getStyles(activeComponent.element)}
-                            onClick={(e) => e.preventDefault()}
-                            className="hover:underline text-xs"
-                          >
-                            {parseFormattedTextToReact(activeComponent.element.content)}
-                          </a>
-                        </div>
-                      )}
- 
-                      {activeComponent.element.type === 'divider' && (
-                        <div className="py-2">
-                          <hr style={getStyles(activeComponent.element)} />
-                        </div>
-                      )}
- 
-                      {activeComponent.element.type === 'spacer' && (
-                        <div style={getStyles(activeComponent.element)} className="bg-zinc-400/5 border border-dashed border-zinc-800/10 rounded" />
-                      )}
+                      {renderElementEditable(activeComponent.element)}
                     </div>
                   </div>
  
                   {/* Stage help footer */}
                   <div className="p-3 bg-zinc-900/10 text-center text-[10px] text-zinc-500 font-mono flex items-center justify-center gap-1">
-                    <Sliders className="h-3 w-3 text-indigo-400" /> Use o painel ao lado para editar estilos e textos em tempo real.
+                    <Sliders className="h-3 w-3 text-indigo-400" /> Clique nos sub-elementos para selecioná-los e editá-los no painel de controle.
                   </div>
                 </div>
               </div>
@@ -533,16 +1078,44 @@ export default function ComponentsWorkspace({
                 <div className="p-3 bg-[#0f0f0f] border-b border-zinc-800 flex items-center justify-between text-xs font-bold uppercase tracking-wider shrink-0">
                   <span className="flex items-center gap-1.5 text-zinc-200">
                     <Sliders className="h-3.5 w-3.5 text-indigo-400" />
-                    Edição do Componente
+                    Propriedades do Componente
                   </span>
                 </div>
-                <div className="flex-1 overflow-y-auto">
-                  <SettingsPanel
-                    element={activeComponent.element}
-                    variables={variables}
-                    onUpdateElement={handleUpdateElement}
-                    onDeleteElement={() => onDeleteComponent(activeComponent.id)}
-                  />
+                <div className="flex-1 overflow-y-auto flex flex-col">
+                  {/* General Component Configuration (Always Visible) */}
+                  <div className="p-4 border-b border-zinc-900 bg-[#0d0d0d] space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Nome do Componente</label>
+                      <input
+                        type="text"
+                        value={activeComponent.name}
+                        onChange={(e) => {
+                          onUpdateComponent({
+                            ...activeComponent,
+                            name: e.target.value,
+                            updatedAt: Date.now()
+                          });
+                        }}
+                        className="w-full text-xs bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-zinc-200 focus:outline-none focus:border-indigo-500 font-semibold"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Specific Element Editor */}
+                  <div className="flex-1 overflow-y-auto">
+                    {activeSubElement && (
+                      <SettingsPanel
+                        element={activeSubElement}
+                        variables={variables}
+                        onUpdateElement={handleUpdateSubElement}
+                        onDeleteElement={
+                          activeSubElement.id === activeComponent.element.id
+                            ? undefined // Don't let them delete the root element container of the component!
+                            : () => handleDeleteSubElement(activeSubElement.id)
+                        }
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

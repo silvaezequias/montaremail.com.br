@@ -21,6 +21,9 @@ export default function SettingsPanel({
   const { type, content, styles, href, src, alt } = element;
 
   const [keepProportion, setKeepProportion] = React.useState(true);
+  const [linkMargins, setLinkMargins] = React.useState(true);
+  const [linkPaddings, setLinkPaddings] = React.useState(true);
+  const [radiusMode, setRadiusMode] = React.useState<'linked' | 'axes' | 'separated'>('linked');
 
   const updateStyle = (key: keyof typeof styles, value: any) => {
     onUpdateElement({
@@ -540,74 +543,57 @@ export default function SettingsPanel({
             </div>
           )}
 
-          {/* Margins Settings with fine-grained individual controls for all 4 sides */}
+          {/* Margens Settings with fine-grained individual controls for all 4 sides */}
           <div className="space-y-2 p-3 bg-zinc-900/40 rounded-xl border border-zinc-800">
-            <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
-              Margens Externas (px)
-            </span>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block">
+                Margens Externas (px)
+              </span>
+              <button
+                type="button"
+                onClick={() => setLinkMargins(!linkMargins)}
+                className={`p-1.5 rounded-lg border transition-all flex items-center gap-1 text-[10px] cursor-pointer ${
+                  linkMargins 
+                    ? 'bg-blue-600/15 border-blue-500/30 text-blue-400 hover:bg-blue-600/25' 
+                    : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:text-zinc-300'
+                }`}
+                title={linkMargins ? "Mudar cada margem separadamente" : "Mudar todas de uma vez"}
+              >
+                {linkMargins ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+                {linkMargins ? "Vinculado" : "Separado"}
+              </button>
+            </div>
+
+            {linkMargins ? (
               <div>
-                <label className="text-[10px] text-zinc-500 font-medium block mb-0.5">Superior (Top)</label>
+                <label className="text-[10px] text-zinc-500 font-medium block mb-0.5">Todas as Margens</label>
                 <input
                   type="number"
                   min="0"
                   max="120"
                   value={styles.marginTop || 0}
-                  onChange={(e) => updateStyle('marginTop', parseInt(e.target.value) || 0)}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 0;
+                    updateStyles({
+                      marginTop: val,
+                      marginBottom: val,
+                      marginLeft: val,
+                      marginRight: val
+                    });
+                  }}
                   className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
                 />
               </div>
-              <div>
-                <label className="text-[10px] text-zinc-500 font-medium block mb-0.5">Inferior (Bottom)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="120"
-                  value={styles.marginBottom !== undefined ? styles.marginBottom : 16}
-                  onChange={(e) => updateStyle('marginBottom', parseInt(e.target.value) || 0)}
-                  className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-zinc-500 font-medium block mb-0.5">Esquerda (Left)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="120"
-                  value={styles.marginLeft || 0}
-                  onChange={(e) => updateStyle('marginLeft', parseInt(e.target.value) || 0)}
-                  className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-zinc-500 font-medium block mb-0.5">Direita (Right)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="120"
-                  value={styles.marginRight || 0}
-                  onChange={(e) => updateStyle('marginRight', parseInt(e.target.value) || 0)}
-                  className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Padding settings for Button, Container and Grid elements */}
-          {(type === 'button' || type === 'container' || type === 'grid') && (
-            <div className="space-y-2 p-3 bg-zinc-900/40 rounded-xl border border-zinc-800">
-              <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
-                Espaçamento Interno (Padding px)
-              </span>
-              <div className="grid grid-cols-2 gap-2">
+            ) : (
+              <div className="grid grid-cols-2 gap-2 animate-fade-in">
                 <div>
                   <label className="text-[10px] text-zinc-500 font-medium block mb-0.5">Superior (Top)</label>
                   <input
                     type="number"
                     min="0"
-                    max="64"
-                    value={styles.paddingTop !== undefined ? styles.paddingTop : 12}
-                    onChange={(e) => updateStyle('paddingTop', parseInt(e.target.value) || 0)}
+                    max="120"
+                    value={styles.marginTop || 0}
+                    onChange={(e) => updateStyle('marginTop', parseInt(e.target.value) || 0)}
                     className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
                   />
                 </div>
@@ -616,9 +602,9 @@ export default function SettingsPanel({
                   <input
                     type="number"
                     min="0"
-                    max="64"
-                    value={styles.paddingBottom !== undefined ? styles.paddingBottom : 12}
-                    onChange={(e) => updateStyle('paddingBottom', parseInt(e.target.value) || 0)}
+                    max="120"
+                    value={styles.marginBottom !== undefined ? styles.marginBottom : 16}
+                    onChange={(e) => updateStyle('marginBottom', parseInt(e.target.value) || 0)}
                     className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
                   />
                 </div>
@@ -627,9 +613,9 @@ export default function SettingsPanel({
                   <input
                     type="number"
                     min="0"
-                    max="64"
-                    value={styles.paddingLeft !== undefined ? styles.paddingLeft : 24}
-                    onChange={(e) => updateStyle('paddingLeft', parseInt(e.target.value) || 0)}
+                    max="120"
+                    value={styles.marginLeft || 0}
+                    onChange={(e) => updateStyle('marginLeft', parseInt(e.target.value) || 0)}
                     className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
                   />
                 </div>
@@ -638,18 +624,111 @@ export default function SettingsPanel({
                   <input
                     type="number"
                     min="0"
-                    max="64"
-                    value={styles.paddingRight !== undefined ? styles.paddingRight : 24}
-                    onChange={(e) => updateStyle('paddingRight', parseInt(e.target.value) || 0)}
+                    max="120"
+                    value={styles.marginRight || 0}
+                    onChange={(e) => updateStyle('marginRight', parseInt(e.target.value) || 0)}
                     className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
                   />
                 </div>
               </div>
+            )}
+          </div>
+
+          {/* Padding settings for Button, Container and Grid elements */}
+          {(type === 'button' || type === 'container' || type === 'grid') && (
+            <div className="space-y-2 p-3 bg-zinc-900/40 rounded-xl border border-zinc-800">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block">
+                  Espaçamento Interno (Padding px)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setLinkPaddings(!linkPaddings)}
+                  className={`p-1.5 rounded-lg border transition-all flex items-center gap-1 text-[10px] cursor-pointer ${
+                    linkPaddings 
+                      ? 'bg-blue-600/15 border-blue-500/30 text-blue-400 hover:bg-blue-600/25' 
+                      : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:text-zinc-300'
+                  }`}
+                  title={linkPaddings ? "Mudar cada padding separadamente" : "Mudar todos de uma vez"}
+                >
+                  {linkPaddings ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+                  {linkPaddings ? "Vinculado" : "Separado"}
+                </button>
+              </div>
+
+              {linkPaddings ? (
+                <div>
+                  <label className="text-[10px] text-zinc-500 font-medium block mb-0.5">Todo o Espaçamento</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="64"
+                    value={styles.paddingTop !== undefined ? styles.paddingTop : 12}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      updateStyles({
+                        paddingTop: val,
+                        paddingBottom: val,
+                        paddingLeft: val,
+                        paddingRight: val
+                      });
+                    }}
+                    className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 animate-fade-in">
+                  <div>
+                    <label className="text-[10px] text-zinc-500 font-medium block mb-0.5">Superior (Top)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="64"
+                      value={styles.paddingTop !== undefined ? styles.paddingTop : 12}
+                      onChange={(e) => updateStyle('paddingTop', parseInt(e.target.value) || 0)}
+                      className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-zinc-500 font-medium block mb-0.5">Inferior (Bottom)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="64"
+                      value={styles.paddingBottom !== undefined ? styles.paddingBottom : 12}
+                      onChange={(e) => updateStyle('paddingBottom', parseInt(e.target.value) || 0)}
+                      className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-zinc-500 font-medium block mb-0.5">Esquerda (Left)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="64"
+                      value={styles.paddingLeft !== undefined ? styles.paddingLeft : 24}
+                      onChange={(e) => updateStyle('paddingLeft', parseInt(e.target.value) || 0)}
+                      className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-zinc-500 font-medium block mb-0.5">Direita (Right)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="64"
+                      value={styles.paddingRight !== undefined ? styles.paddingRight : 24}
+                      onChange={(e) => updateStyle('paddingRight', parseInt(e.target.value) || 0)}
+                      className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* Borders and Rounding */}
+        {/* Borders and Rounding Section */}
         {(type === 'button' || type === 'image' || type === 'divider' || type === 'container' || type === 'grid') && (
           <div className="space-y-4">
             <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-850 pb-1.5 flex items-center gap-1.5">
@@ -658,81 +737,266 @@ export default function SettingsPanel({
             </h4>
 
             {type !== 'divider' && (
-              <div className="space-y-2 p-3 bg-zinc-900/40 rounded-xl border border-zinc-800">
-                <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
-                  Arredondamento por Canto (Radius px)
-                </span>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] text-zinc-500 font-medium block mb-0.5">Sup. Esquerdo (TL)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="120"
-                      value={styles.borderRadiusTopLeft !== undefined ? styles.borderRadiusTopLeft : (styles.borderRadius || 0)}
-                      onChange={(e) => updateStyle('borderRadiusTopLeft', parseInt(e.target.value) || 0)}
-                      className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
-                    />
+              <div className="space-y-4 p-3 bg-zinc-900/40 rounded-xl border border-zinc-800">
+                {/* Rounding Mode Switcher */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Arredondamento</span>
+                    <div className="flex bg-zinc-950 p-0.5 rounded-lg border border-zinc-850">
+                      {(['linked', 'axes', 'separated'] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => setRadiusMode(mode)}
+                          className={`px-1.5 py-0.5 rounded text-[8px] font-bold transition-all cursor-pointer ${
+                            radiusMode === mode
+                              ? 'bg-blue-600 text-white shadow font-extrabold'
+                              : 'text-zinc-500 hover:text-zinc-300'
+                          }`}
+                        >
+                          {mode === 'linked' ? 'Vinc.' : mode === 'axes' ? 'Eixos' : 'Sep.'}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-[10px] text-zinc-500 font-medium block mb-0.5">Sup. Direito (TR)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="120"
-                      value={styles.borderRadiusTopRight !== undefined ? styles.borderRadiusTopRight : (styles.borderRadius || 0)}
-                      onChange={(e) => updateStyle('borderRadiusTopRight', parseInt(e.target.value) || 0)}
-                      className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-zinc-500 font-medium block mb-0.5">Inf. Esquerdo (BL)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="120"
-                      value={styles.borderRadiusBottomLeft !== undefined ? styles.borderRadiusBottomLeft : (styles.borderRadius || 0)}
-                      onChange={(e) => updateStyle('borderRadiusBottomLeft', parseInt(e.target.value) || 0)}
-                      className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-zinc-500 font-medium block mb-0.5">Inf. Direito (BR)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="120"
-                      value={styles.borderRadiusBottomRight !== undefined ? styles.borderRadiusBottomRight : (styles.borderRadius || 0)}
-                      onChange={(e) => updateStyle('borderRadiusBottomRight', parseInt(e.target.value) || 0)}
-                      className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
+
+                  {/* Rounding Inputs depending on mode */}
+                  {radiusMode === 'linked' && (
+                    <div className="animate-fade-in">
+                      <label className="text-[10px] text-zinc-500 font-medium block mb-1">Todos os Cantos (px)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="120"
+                        value={styles.borderRadius !== undefined ? styles.borderRadius : (styles.borderRadiusTopLeft || 0)}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value) || 0;
+                          updateStyles({
+                            borderRadius: val,
+                            borderRadiusTopLeft: val,
+                            borderRadiusTopRight: val,
+                            borderRadiusBottomLeft: val,
+                            borderRadiusBottomRight: val
+                          });
+                        }}
+                        className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-zinc-200 focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  )}
+
+                  {radiusMode === 'axes' && (
+                    <div className="grid grid-cols-2 gap-2 animate-fade-in">
+                      <div>
+                        <label className="text-[10px] text-zinc-500 font-medium block mb-1">Cima (Topo)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="120"
+                          value={styles.borderRadiusTopLeft !== undefined ? styles.borderRadiusTopLeft : (styles.borderRadius || 0)}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            updateStyles({
+                              borderRadiusTopLeft: val,
+                              borderRadiusTopRight: val
+                            });
+                          }}
+                          className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-zinc-500 font-medium block mb-1">Baixo (Base)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="120"
+                          value={styles.borderRadiusBottomLeft !== undefined ? styles.borderRadiusBottomLeft : (styles.borderRadius || 0)}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            updateStyles({
+                              borderRadiusBottomLeft: val,
+                              borderRadiusBottomRight: val
+                            });
+                          }}
+                          className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-zinc-500 font-medium block mb-1">Esquerda (Esq)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="120"
+                          value={styles.borderRadiusTopLeft !== undefined ? styles.borderRadiusTopLeft : (styles.borderRadius || 0)}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            updateStyles({
+                              borderRadiusTopLeft: val,
+                              borderRadiusBottomLeft: val
+                            });
+                          }}
+                          className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-zinc-500 font-medium block mb-1">Direita (Dir)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="120"
+                          value={styles.borderRadiusTopRight !== undefined ? styles.borderRadiusTopRight : (styles.borderRadius || 0)}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            updateStyles({
+                              borderRadiusTopRight: val,
+                              borderRadiusBottomRight: val
+                            });
+                          }}
+                          className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {radiusMode === 'separated' && (
+                    <div className="grid grid-cols-2 gap-2 animate-fade-in">
+                      <div>
+                        <label className="text-[10px] text-zinc-500 font-medium block mb-1">Sup. Esquerdo (TL)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="120"
+                          value={styles.borderRadiusTopLeft !== undefined ? styles.borderRadiusTopLeft : (styles.borderRadius || 0)}
+                          onChange={(e) => updateStyle('borderRadiusTopLeft', parseInt(e.target.value) || 0)}
+                          className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-zinc-500 font-medium block mb-1">Sup. Direito (TR)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="120"
+                          value={styles.borderRadiusTopRight !== undefined ? styles.borderRadiusTopRight : (styles.borderRadius || 0)}
+                          onChange={(e) => updateStyle('borderRadiusTopRight', parseInt(e.target.value) || 0)}
+                          className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-zinc-500 font-medium block mb-1">Inf. Esquerdo (BL)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="120"
+                          value={styles.borderRadiusBottomLeft !== undefined ? styles.borderRadiusBottomLeft : (styles.borderRadius || 0)}
+                          onChange={(e) => updateStyle('borderRadiusBottomLeft', parseInt(e.target.value) || 0)}
+                          className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-zinc-500 font-medium block mb-1">Inf. Direito (BR)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="120"
+                          value={styles.borderRadiusBottomRight !== undefined ? styles.borderRadiusBottomRight : (styles.borderRadius || 0)}
+                          onChange={(e) => updateStyle('borderRadiusBottomRight', parseInt(e.target.value) || 0)}
+                          className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200 focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
 
-            {(type === 'divider' || type === 'container' || type === 'grid') && (
-              <div className="space-y-3">
-                <div className="space-y-1.5 flex justify-between items-center bg-zinc-900/40 p-3 rounded-xl border border-zinc-800">
-                  <span className="text-xs font-semibold text-zinc-400">Espessura da Borda/Linha (px)</span>
+            {/* Consolidated Border Style, Width, Color, and Sides Selector */}
+            <div className="space-y-4 p-3 bg-zinc-900/40 rounded-xl border border-zinc-800">
+              <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block">
+                Configurações de Linha / Borda
+              </span>
+
+              {/* Quantas bordas quer colocar (Border Sides Selector) */}
+              {type !== 'divider' && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wide">Onde aplicar a borda?</label>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {([
+                      { id: 'top', label: 'Topo' },
+                      { id: 'bottom', label: 'Base' },
+                      { id: 'left', label: 'Esq' },
+                      { id: 'right', label: 'Dir' }
+                    ] as const).map((side) => {
+                      const isSelected = (styles.borderSides || ['top', 'bottom', 'left', 'right']).includes(side.id);
+                      return (
+                        <button
+                          key={side.id}
+                          type="button"
+                          onClick={() => {
+                            const current = styles.borderSides || ['top', 'bottom', 'left', 'right'];
+                            let updated: ('top' | 'bottom' | 'left' | 'right')[];
+                            if (current.includes(side.id)) {
+                              updated = current.filter(s => s !== side.id);
+                            } else {
+                              updated = [...current, side.id];
+                            }
+                            updateStyle('borderSides', updated);
+                          }}
+                          className={`px-1 py-1.5 rounded-lg border text-[10px] font-bold text-center transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-blue-600/15 border-blue-500/45 text-blue-400 font-extrabold'
+                              : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:text-zinc-300'
+                          }`}
+                        >
+                          {side.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Width & Style Row */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] text-zinc-500 font-medium">Espessura (px)</label>
                   <input
                     type="number"
                     min="0"
                     max="24"
                     value={styles.borderWidth !== undefined ? styles.borderWidth : (type === 'divider' ? 1 : 0)}
-                    onChange={(e) => updateStyle('borderWidth', parseInt(e.target.value) || 0)}
-                    className="text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-zinc-200 focus:outline-none focus:border-blue-500 w-24 text-center"
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      updateStyle('borderWidth', val);
+                    }}
+                    className="w-full text-xs font-mono bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-zinc-200 focus:outline-none focus:border-blue-500 text-center"
                   />
                 </div>
-                <div className="space-y-1.5 flex justify-between items-center bg-zinc-900/40 p-3 rounded-xl border border-zinc-800">
-                  <span className="text-xs font-semibold text-zinc-400">Cor da Borda/Linha</span>
-                  <ColorPicker
-                    value={styles.borderColor || '#cbd5e1'}
-                    onChange={(c) => updateStyle('borderColor', c)}
-                  />
+
+                <div className="space-y-1">
+                  <label className="text-[10px] text-zinc-500 font-medium">Estilo</label>
+                  <select
+                    value={styles.borderStyle || 'solid'}
+                    onChange={(e) => updateStyle('borderStyle', e.target.value)}
+                    className="w-full text-xs bg-zinc-950 border border-zinc-800 rounded-lg p-1.5 text-zinc-200 focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="solid">Sólida</option>
+                    <option value="dashed">Tracejada</option>
+                    <option value="dotted">Pontilhada</option>
+                    <option value="double">Dupla</option>
+                    <option value="none">Nenhum</option>
+                  </select>
                 </div>
               </div>
-            )}
+
+              {/* Color Selector */}
+              <div className="flex justify-between items-center bg-zinc-950 p-2.5 rounded-xl border border-zinc-800/80">
+                <span className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider font-mono">Cor da Linha</span>
+                <ColorPicker
+                  value={styles.borderColor || '#cbd5e1'}
+                  onChange={(c) => updateStyle('borderColor', c)}
+                />
+              </div>
+            </div>
           </div>
         )}
       </div>

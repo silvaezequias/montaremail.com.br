@@ -225,6 +225,11 @@ export default function ProjectDashboard({
       }
     }
 
+    const tl = s.borderRadiusTopLeft !== undefined ? s.borderRadiusTopLeft : s.borderRadius;
+    const tr = s.borderRadiusTopRight !== undefined ? s.borderRadiusTopRight : s.borderRadius;
+    const bl = s.borderRadiusBottomLeft !== undefined ? s.borderRadiusBottomLeft : s.borderRadius;
+    const br = s.borderRadiusBottomRight !== undefined ? s.borderRadiusBottomRight : s.borderRadius;
+
     const inlineStyles: React.CSSProperties = {
       color: customColor,
       backgroundColor: customBg,
@@ -237,13 +242,58 @@ export default function ProjectDashboard({
       paddingRight: s.paddingRight ? `${s.paddingRight}px` : undefined,
       marginTop: s.marginTop ? `${s.marginTop}px` : undefined,
       marginBottom: s.marginBottom ? `${s.marginBottom}px` : undefined,
-      borderRadius: s.borderRadius ? `${s.borderRadius}px` : undefined,
-      borderWidth: s.borderWidth ? `${s.borderWidth}px` : undefined,
-      borderColor: customBorder,
-      borderStyle: s.borderWidth ? 'solid' : undefined,
       width: s.width ? `${s.width}px` : undefined,
       height: s.height ? `${s.height}px` : undefined,
     };
+
+    if (tl !== undefined) inlineStyles.borderTopLeftRadius = `${tl}px`;
+    if (tr !== undefined) inlineStyles.borderTopRightRadius = `${tr}px`;
+    if (bl !== undefined) inlineStyles.borderBottomLeftRadius = `${bl}px`;
+    if (br !== undefined) inlineStyles.borderBottomRightRadius = `${br}px`;
+
+    const borderWidth = s.borderWidth !== undefined ? s.borderWidth : 0;
+    const borderStyle = s.borderStyle || 'solid';
+    const borderColor = customBorder || '#cbd5e1';
+    const borderSides = s.borderSides || ['top', 'bottom', 'left', 'right'];
+
+    if (borderWidth > 0) {
+      if (borderSides.includes('top')) {
+        inlineStyles.borderTopWidth = `${borderWidth}px`;
+        inlineStyles.borderTopStyle = borderStyle as any;
+        inlineStyles.borderTopColor = borderColor;
+      } else {
+        inlineStyles.borderTopWidth = '0px';
+      }
+      if (borderSides.includes('bottom')) {
+        inlineStyles.borderBottomWidth = `${borderWidth}px`;
+        inlineStyles.borderBottomStyle = borderStyle as any;
+        inlineStyles.borderBottomColor = borderColor;
+      } else {
+        inlineStyles.borderBottomWidth = '0px';
+      }
+      if (borderSides.includes('left')) {
+        inlineStyles.borderLeftWidth = `${borderWidth}px`;
+        inlineStyles.borderLeftStyle = borderStyle as any;
+        inlineStyles.borderLeftColor = borderColor;
+      } else {
+        inlineStyles.borderLeftWidth = '0px';
+      }
+      if (borderSides.includes('right')) {
+        inlineStyles.borderRightWidth = `${borderWidth}px`;
+        inlineStyles.borderRightStyle = borderStyle as any;
+        inlineStyles.borderRightColor = borderColor;
+      } else {
+        inlineStyles.borderRightWidth = '0px';
+      }
+    } else if (el.type === 'divider') {
+      inlineStyles.borderTopWidth = '1px';
+      inlineStyles.borderTopStyle = 'solid';
+      inlineStyles.borderTopColor = borderColor;
+    }
+
+    if (el.type === 'container' || el.type === 'grid') {
+      inlineStyles.overflow = 'hidden';
+    }
 
     // Replace basic variables like {{userName}}
     const replaceVars = (text: string) => {
@@ -331,9 +381,46 @@ export default function ProjectDashboard({
               flexDirection: 'column',
               gap: '8px',
             }}
-            className="border border-dashed border-zinc-200/50 p-4"
+            className="w-full"
           >
             {el.children?.map(child => renderPreviewElement(child, visId))}
+          </div>
+        );
+      case 'grid': {
+        const rows = el.rowsCount || 1;
+        const cols = el.colsCount || 2;
+        const gridCells = el.gridCells || {};
+        return (
+          <div key={el.id} style={inlineStyles} className="w-full">
+            <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+              {Array.from({ length: rows }).map((_, r) => (
+                <React.Fragment key={r}>
+                  {Array.from({ length: cols }).map((_, c) => {
+                    const cellKey = `${r}-${c}`;
+                    const cellElements = gridCells[cellKey] || [];
+                    return (
+                      <div key={cellKey} className="space-y-1.5 flex flex-col justify-start">
+                        {cellElements.map((child) => renderPreviewElement(child, visId))}
+                      </div>
+                    );
+                  })}
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+        );
+      }
+      case 'link':
+        return (
+          <div key={el.id} style={{ textAlign: s.align || 'left', marginTop: s.marginTop, marginBottom: s.marginBottom }}>
+            <a
+              href="#"
+              style={inlineStyles}
+              className="underline hover:opacity-85 font-medium"
+              onClick={(e) => e.preventDefault()}
+            >
+              {replaceVars(el.content) || 'Link Clicável'}
+            </a>
           </div>
         );
       default:

@@ -19,6 +19,8 @@ export interface ElementStyles {
   borderRadiusBottomRight?: number;
   borderWidth?: number;
   borderColor?: string;
+  borderStyle?: string;
+  borderSides?: ('top' | 'bottom' | 'left' | 'right')[];
   paddingTop?: number;
   paddingBottom?: number;
   paddingLeft?: number;
@@ -90,6 +92,7 @@ export interface ReusableComponent {
   name: string;
   element: EmailElement;
   updatedAt?: number;
+  isCustom?: boolean;
 }
 
 export interface BrandColor {

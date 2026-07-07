@@ -451,6 +451,50 @@ export default function VisualIdentityWorkspace({
         {/* Right Column: Signature Studio & Live Variable Signature Preview */}
         <div className="lg:col-span-5 space-y-8">
           
+          {/* Section: Amostras da Identidade Visual (Separated Colors Container) */}
+          <div className="bg-[#0f0f0f] border border-zinc-800 rounded-2xl p-6 space-y-4">
+            <div className="flex justify-between items-center border-b border-zinc-850 pb-2.5">
+              <div>
+                <h3 className="text-sm font-bold text-zinc-100 flex items-center gap-1.5 uppercase tracking-wider">
+                  <Palette className="h-4 w-4 text-pink-400" />
+                  Paleta Consolidada da Identidade
+                </h3>
+                <p className="text-[10px] text-zinc-500 mt-0.5">Visão isolada das cores oficiais ativas</p>
+              </div>
+              <span className="text-[9px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full font-mono border border-emerald-500/20 font-bold tracking-wider animate-pulse shrink-0">
+                SINCRONIZADO
+              </span>
+            </div>
+            
+            <p className="text-[11px] text-zinc-400 leading-relaxed">
+              Este container isola e exibe as cores que pertencem à sua identidade corporativa. Qualquer alteração ou novas cores adicionadas na seção ao lado serão refletidas aqui em tempo real.
+            </p>
+
+            <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-850 space-y-3">
+              {visualIdentity.brandColors.length === 0 ? (
+                <p className="text-xs text-zinc-500 text-center py-4">Nenhuma cor cadastrada ainda. Adicione cores na paleta da marca ao lado.</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2.5">
+                  {visualIdentity.brandColors.map((color) => (
+                    <div 
+                      key={color.id}
+                      className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-2 flex items-center gap-2.5 shadow-sm hover:border-zinc-700 transition-all duration-200"
+                    >
+                      <span 
+                        className="w-8 h-8 rounded-lg shrink-0 shadow-md border border-white/10" 
+                        style={{ backgroundColor: color.value }}
+                      />
+                      <div className="overflow-hidden">
+                        <span className="block text-[11px] font-bold text-zinc-200 truncate">{color.name}</span>
+                        <span className="block text-[9px] font-mono text-indigo-400 uppercase mt-0.5">{color.value}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Section 3: Professional Signature Builder */}
           <div className="bg-[#0f0f0f] border border-zinc-800 rounded-2xl p-6 space-y-6 flex flex-col h-full justify-between">
             <div className="space-y-6">

@@ -64,9 +64,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'editor' | 'components' | 'identity'>('editor');
 
   // Helper to create blank email templates
-  const createBlankTemplate = (name: string): EmailTemplate => {
+  const createBlankTemplate = (name: string, customId?: string): EmailTemplate => {
     return {
-      id: `blank_${Date.now()}`,
+      id: customId || `blank_${Date.now()}`,
       name: name,
       elements: [
         {
@@ -287,6 +287,15 @@ export default function App() {
       }));
     }
   }, [template, visualIdentity, reusableComponents, activeProjectId, activeTemplateId]);
+
+  // Reset template-specific states when exiting the template view
+  useEffect(() => {
+    if (!activeTemplateId) {
+      setSelectedElementId(null);
+      setUndoStack([]);
+      setRedoStack([]);
+    }
+  }, [activeTemplateId]);
 
   // Undo and Redo History stacks
   const [undoStack, setUndoStack] = useState<EmailTemplate[]>([]);
@@ -558,7 +567,11 @@ export default function App() {
     const newTplId = `tpl_${Date.now()}`;
     const newTpl = baseTemplate
       ? { ...baseTemplate, id: newTplId, name: name }
-      : createBlankTemplate(name);
+      : createBlankTemplate(name, newTplId);
+    
+    setSelectedElementId(null);
+    setUndoStack([]);
+    setRedoStack([]);
     
     setProjects(prev => prev.map(p => {
       if (p.id === projectId) {
@@ -612,9 +625,12 @@ export default function App() {
 
   const handleSelectTemplate = (projectId: string, templateId: string) => {
     setActiveProjectId(projectId);
+    setSelectedElementId(null);
+    setUndoStack([]);
+    setRedoStack([]);
     if (templateId === 'blank') {
       const newTplId = `tpl_${Date.now()}`;
-      const newTpl = createBlankTemplate('Modelo em Branco');
+      const newTpl = createBlankTemplate('Modelo em Branco', newTplId);
       setProjects(prev => prev.map(p => {
         if (p.id === projectId) {
           return {
@@ -817,12 +833,32 @@ export default function App() {
     localStorage.setItem('react-email-builder-reusable-components', JSON.stringify(reusableComponents));
   }, [reusableComponents]);
 
+  // Helper to perform deep copy of elements and assign unique IDs to prevent shared reference bugs
+  const deepCloneElement = (el: EmailElement): EmailElement => {
+    const clone: EmailElement = {
+      ...el,
+      id: `${el.type}_${Date.now()}_${Math.floor(Math.random() * 1000000)}`,
+      styles: { ...el.styles },
+    };
+
+    if (el.children) {
+      clone.children = el.children.map(child => deepCloneElement(child));
+    }
+
+    if (el.gridCells) {
+      const clonedCells: Record<string, EmailElement[]> = {};
+      for (const [key, cellElements] of Object.entries(el.gridCells)) {
+        clonedCells[key] = cellElements.map(child => deepCloneElement(child));
+      }
+      clone.gridCells = clonedCells;
+    }
+
+    return clone;
+  };
+
   // Insert a reusable component into the current email template
   const handleInsertComponent = (comp: ReusableComponent) => {
-    const clonedElement: EmailElement = {
-      ...comp.element,
-      id: `${comp.element.type}_${Date.now()}`,
-    };
+    const clonedElement = deepCloneElement(comp.element);
     setTemplate((prev) => ({
       ...prev,
       elements: [...prev.elements, clonedElement],
@@ -844,10 +880,7 @@ export default function App() {
     const newComponent: ReusableComponent = {
       id: `comp_${Date.now()}`,
       name: tempComponentName.trim(),
-      element: {
-        ...componentToSave,
-        id: `${componentToSave.type}_${Date.now()}`, // Clean ID for reused copies
-      },
+      element: deepCloneElement(componentToSave),
       updatedAt: Date.now(),
     };
 
@@ -977,6 +1010,123 @@ export default function App() {
           }
         };
         break;
+      case 'container':
+        baseElement = {
+          id: `container_${Date.now()}`,
+          type,
+          content: '',
+          styles: {
+            backgroundColor: '#ffffff',
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: '#e2e8f0',
+            paddingTop: 16,
+            paddingBottom: 16,
+            paddingLeft: 16,
+            paddingRight: 16,
+            marginTop: 8,
+            marginBottom: 8,
+          },
+          children: []
+        };
+        break;
+      case 'grid':
+        baseElement = {
+          id: `grid_${Date.now()}`,
+          type,
+          content: '',
+          rowsCount: 1,
+          colsCount: 2,
+          styles: {
+            backgroundColor: '#ffffff',
+            borderRadius: 12,
+            paddingTop: 16,
+            paddingBottom: 16,
+            paddingLeft: 16,
+            paddingRight: 16,
+            marginTop: 12,
+            marginBottom: 12,
+            borderWidth: 1,
+            borderColor: '#f1f5f9',
+          },
+          gridCells: {
+            '0-0': [
+              {
+                id: `image_${Date.now()}_c1`,
+                type: 'image',
+                content: '',
+                src: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&auto=format&fit=crop&q=60',
+                alt: 'Produto A',
+                styles: {
+                  borderRadius: 8,
+                  align: 'center',
+                  marginBottom: 8,
+                }
+              },
+              {
+                id: `heading_${Date.now()}_c1`,
+                type: 'heading',
+                content: 'Produto Premium A',
+                styles: {
+                  fontSize: 14,
+                  fontWeight: 'bold',
+                  textColor: '#1e293b',
+                  align: 'center',
+                  marginBottom: 4,
+                }
+              },
+              {
+                id: `text_${Date.now()}_c1`,
+                type: 'text',
+                content: 'Destaque seus produtos em colunas lado a lado facilmente.',
+                styles: {
+                  fontSize: 11,
+                  textColor: '#64748b',
+                  align: 'center',
+                  marginBottom: 0,
+                }
+              }
+            ],
+            '0-1': [
+              {
+                id: `image_${Date.now()}_c2`,
+                type: 'image',
+                content: '',
+                src: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&auto=format&fit=crop&q=60',
+                alt: 'Produto B',
+                styles: {
+                  borderRadius: 8,
+                  align: 'center',
+                  marginBottom: 8,
+                }
+              },
+              {
+                id: `heading_${Date.now()}_c2`,
+                type: 'heading',
+                content: 'Produto Premium B',
+                styles: {
+                  fontSize: 14,
+                  fontWeight: 'bold',
+                  textColor: '#1e293b',
+                  align: 'center',
+                  marginBottom: 4,
+                }
+              },
+              {
+                id: `text_${Date.now()}_c2`,
+                type: 'text',
+                content: 'Adicione múltiplos elementos em cada célula do grid.',
+                styles: {
+                  fontSize: 11,
+                  textColor: '#64748b',
+                  align: 'center',
+                  marginBottom: 0,
+                }
+              }
+            ]
+          }
+        };
+        break;
       default:
         baseElement = {
           id: `el_${Date.now()}`,
@@ -986,11 +1136,32 @@ export default function App() {
         };
     }
 
+    const containerId = `container_${Date.now()}`;
+    const finalRootElement: EmailElement = type === 'container' ? baseElement : {
+      id: containerId,
+      type: 'container',
+      content: '',
+      styles: {
+        backgroundColor: '#ffffff',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        paddingTop: 16,
+        paddingBottom: 16,
+        paddingLeft: 16,
+        paddingRight: 16,
+        marginTop: 8,
+        marginBottom: 8,
+      },
+      children: [baseElement]
+    };
+
     const newComponent: ReusableComponent = {
       id,
       name,
-      element: baseElement,
+      element: finalRootElement,
       updatedAt: Date.now(),
+      isCustom: true,
     };
 
     setReusableComponents((prev) => [...prev, newComponent]);
@@ -1002,10 +1173,7 @@ export default function App() {
     const imported: ReusableComponent = {
       ...comp,
       id: `comp_${Date.now()}`,
-      element: {
-        ...comp.element,
-        id: `${comp.element.type}_${Date.now()}`,
-      },
+      element: deepCloneElement(comp.element),
       updatedAt: Date.now(),
     };
     setReusableComponents((prev) => [...prev, imported]);
@@ -1654,7 +1822,9 @@ export default function App() {
               <span className="text-zinc-800 text-sm font-light select-none">|</span>
             </div>
           )}
-          <img src="https://montaremail.com.br/logo_completa.png" alt="MontarEmail" className="h-7 w-auto object-contain" referrerPolicy="no-referrer" />
+          {!activeTemplateId && (
+            <img src="https://montaremail.com.br/logo_completa.png" alt="MontarEmail" className="h-7 w-auto object-contain" referrerPolicy="no-referrer" />
+          )}
         </div>
 
         {/* Workspace Tab Toggle */}

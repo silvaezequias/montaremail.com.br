@@ -460,18 +460,54 @@ export default function Canvas({
     
     if (styles.fontWeight) styleObj.fontWeight = styles.fontWeight;
     
-    if (styles.borderRadiusTopLeft !== undefined) styleObj.borderTopLeftRadius = `${styles.borderRadiusTopLeft}px`;
-    if (styles.borderRadiusTopRight !== undefined) styleObj.borderTopRightRadius = `${styles.borderRadiusTopRight}px`;
-    if (styles.borderRadiusBottomLeft !== undefined) styleObj.borderBottomLeftRadius = `${styles.borderRadiusBottomLeft}px`;
-    if (styles.borderRadiusBottomRight !== undefined) styleObj.borderBottomRightRadius = `${styles.borderRadiusBottomRight}px`;
-    if (styles.borderRadius !== undefined && styles.borderRadiusTopLeft === undefined) {
-      styleObj.borderRadius = `${styles.borderRadius}px`;
-    }
+    const tl = styles.borderRadiusTopLeft !== undefined ? styles.borderRadiusTopLeft : styles.borderRadius;
+    const tr = styles.borderRadiusTopRight !== undefined ? styles.borderRadiusTopRight : styles.borderRadius;
+    const bl = styles.borderRadiusBottomLeft !== undefined ? styles.borderRadiusBottomLeft : styles.borderRadius;
+    const br = styles.borderRadiusBottomRight !== undefined ? styles.borderRadiusBottomRight : styles.borderRadius;
+
+    if (tl !== undefined) styleObj.borderTopLeftRadius = `${tl}px`;
+    if (tr !== undefined) styleObj.borderTopRightRadius = `${tr}px`;
+    if (bl !== undefined) styleObj.borderBottomLeftRadius = `${bl}px`;
+    if (br !== undefined) styleObj.borderBottomRightRadius = `${br}px`;
     
-    if (styles.borderWidth !== undefined) {
-      styleObj.borderStyle = 'solid';
-      styleObj.borderWidth = `${styles.borderWidth}px`;
-      if (styles.borderColor) styleObj.borderColor = styles.borderColor;
+    const borderWidth = styles.borderWidth !== undefined ? styles.borderWidth : 0;
+    const borderStyle = styles.borderStyle || 'solid';
+    const borderColor = styles.borderColor || '#cbd5e1';
+    const borderSides = styles.borderSides || ['top', 'bottom', 'left', 'right'];
+
+    if (borderWidth > 0) {
+      if (borderSides.includes('top')) {
+        styleObj.borderTopWidth = `${borderWidth}px`;
+        styleObj.borderTopStyle = borderStyle as any;
+        styleObj.borderTopColor = borderColor;
+      } else {
+        styleObj.borderTopWidth = '0px';
+      }
+      if (borderSides.includes('bottom')) {
+        styleObj.borderBottomWidth = `${borderWidth}px`;
+        styleObj.borderBottomStyle = borderStyle as any;
+        styleObj.borderBottomColor = borderColor;
+      } else {
+        styleObj.borderBottomWidth = '0px';
+      }
+      if (borderSides.includes('left')) {
+        styleObj.borderLeftWidth = `${borderWidth}px`;
+        styleObj.borderLeftStyle = borderStyle as any;
+        styleObj.borderLeftColor = borderColor;
+      } else {
+        styleObj.borderLeftWidth = '0px';
+      }
+      if (borderSides.includes('right')) {
+        styleObj.borderRightWidth = `${borderWidth}px`;
+        styleObj.borderRightStyle = borderStyle as any;
+        styleObj.borderRightColor = borderColor;
+      } else {
+        styleObj.borderRightWidth = '0px';
+      }
+    } else if (el.type === 'divider') {
+      styleObj.borderTopWidth = '1px';
+      styleObj.borderTopStyle = 'solid';
+      styleObj.borderTopColor = borderColor;
     }
 
     // Align layout
@@ -479,6 +515,7 @@ export default function Canvas({
 
     // Spacings
     if (el.type === 'container' || el.type === 'grid') {
+      styleObj.overflow = 'hidden';
       styleObj.paddingTop = styles.paddingTop !== undefined ? `${styles.paddingTop}px` : '16px';
       styleObj.paddingBottom = styles.paddingBottom !== undefined ? `${styles.paddingBottom}px` : '16px';
       styleObj.paddingLeft = styles.paddingLeft !== undefined ? `${styles.paddingLeft}px` : '16px';
@@ -719,24 +756,532 @@ export default function Canvas({
     </div>
   );
 
-  const coreEmailDropArea = (
+  // Recursive editor element renderer supporting unlimited nested layouts (grids inside containers, grids inside grids, etc.)
+  const renderElementEditor = (el: EmailElement, index: number, parentId?: string, parentType?: 'container' | 'grid', cellKey?: string, isPurePreview = false): React.ReactNode => {
+    const isSelected = isPurePreview ? false : selectedElementId === el.id;
+    const elStyle = getElementStyles(el);
+
+    const handleElementDragStart = (e: React.DragEvent) => {
+      e.stopPropagation();
+      e.dataTransfer.setData('application/react-email-builder-custom-element', JSON.stringify(el));
+      e.dataTransfer.setData('application/react-email-builder-source-id', el.id);
+    };
+
+    const handleElementDragOver = (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (el.type === 'container') {
+        setDragOverContainerId(el.id);
+        setDragOverChildId(null);
+      } else if (el.type === 'grid') {
+        // Handled by cell level dragovers
+      } else if (parentId) {
+        setDragOverContainerId(parentId);
+        setDragOverChildId(el.id);
+        if (parentType === 'grid' && cellKey) {
+          setDragOverGridCellKey(cellKey);
+        }
+      } else {
+        setDragOverContainerId(null);
+        setDragOverChildId(el.id);
+      }
+    };
+
+    const handleElementDragLeave = () => {
+      // Clear dragover guides safely
+    };
+
+    const handleElementDrop = (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragOverContainerId(null);
+      setDragOverChildId(null);
+      setDragOverGridCellKey(null);
+
+      if (el.type === 'container') {
+        handleDropUnified(e, { type: 'container', containerId: el.id });
+      } else if (parentType === 'container' && parentId) {
+        handleDropUnified(e, { type: 'container', containerId: parentId, childIndex: index });
+      } else if (parentType === 'grid' && parentId && cellKey) {
+        handleDropUnified(e, { type: 'grid', gridId: parentId, cellKey, childIndex: index });
+      } else {
+        handleDropUnified(e, { type: 'top', index });
+      }
+    };
+
+    const renderInnerEditor = () => {
+      switch (el.type) {
+        case 'heading':
+          return (
+            <h2 style={elStyle} className="font-bold leading-tight m-0">
+              {renderContent(el.content) || 'Título Vazio'}
+            </h2>
+          );
+        case 'text':
+          return (
+            <div style={elStyle} className="space-y-2 leading-relaxed">
+              {el.content.split('\n\n').map((para, i) => (
+                <p key={i} className="m-0">
+                  {renderContent(para) || 'Parágrafo Vazio'}
+                </p>
+              ))}
+            </div>
+          );
+        case 'button': {
+          const alignment = el.styles.align || 'center';
+          let alignClass = 'text-center';
+          if (alignment === 'left') alignClass = 'text-left';
+          if (alignment === 'right') alignClass = 'text-right';
+
+          return (
+            <div className={alignClass}>
+              <span
+                style={elStyle}
+                className="inline-block font-semibold shadow-xs"
+              >
+                {renderContent(el.content) || 'Clique Aqui'}
+              </span>
+            </div>
+          );
+        }
+        case 'image': {
+          const imgSrc = replaceVariables(el.src || '', variables) || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=600&auto=format&fit=crop';
+          const alignment = el.styles.align || 'center';
+          let alignClass = 'flex justify-center';
+          if (alignment === 'left') alignClass = 'flex justify-start';
+          if (alignment === 'right') alignClass = 'flex justify-end';
+
+          return (
+            <div className={alignClass} style={{ marginTop: el.styles.marginTop, marginBottom: el.styles.marginBottom }}>
+              <img
+                src={imgSrc}
+                alt={el.alt || 'Template Image'}
+                style={{
+                  width: el.styles.width ? `${el.styles.width}px` : '100%',
+                  height: el.styles.height ? `${el.styles.height}px` : 'auto',
+                  borderRadius: el.styles.borderRadius ? `${el.styles.borderRadius}px` : '0px',
+                  objectFit: 'cover',
+                }}
+                className="max-w-full"
+              />
+            </div>
+          );
+        }
+        case 'link':
+          return (
+            <div style={{ textAlign: el.styles.align || 'left', marginTop: el.styles.marginTop, marginBottom: el.styles.marginBottom }}>
+              <span
+                style={elStyle}
+                className="underline font-medium"
+              >
+                {renderContent(el.content) || 'Link Clicável'}
+              </span>
+            </div>
+          );
+        case 'divider':
+          return (
+            <hr
+              style={{
+                borderColor: el.styles.borderColor || '#cbd5e1',
+                borderWidth: el.styles.borderWidth || 1,
+                borderStyle: 'solid',
+                marginTop: el.styles.marginTop !== undefined ? `${el.styles.marginTop}px` : '12px',
+                marginBottom: el.styles.marginBottom !== undefined ? `${el.styles.marginBottom}px` : '20px',
+              }}
+            />
+          );
+        case 'spacer':
+          return (
+            <div
+              style={{
+                height: `${el.styles.height || 24}px`,
+                backgroundColor: isPurePreview ? 'transparent' : 'rgba(255, 255, 255, 0.02)',
+                border: isPurePreview ? 'none' : '1px dashed rgba(255, 255, 255, 0.1)',
+                borderRadius: '4px',
+              }}
+              className={isPurePreview ? '' : "flex items-center justify-center text-[10px] text-zinc-600 font-mono"}
+            >
+              {!isPurePreview && `Espaçador (${el.styles.height || 24}px)`}
+            </div>
+          );
+        case 'container': {
+          const childrenList = el.children || [];
+          const isOverContainer = dragOverContainerId === el.id && !dragOverChildId;
+          
+          if (isPurePreview) {
+            return (
+              <div style={elStyle} className="w-full">
+                {childrenList.map((child, childIdx) => (
+                  <React.Fragment key={child.id}>
+                    {renderElementEditor(child, childIdx, el.id, 'container', undefined, true)}
+                  </React.Fragment>
+                ))}
+              </div>
+            );
+          }
+
+          return (
+            <div
+              style={elStyle}
+              className={`w-full border-2 border-dashed rounded-xl p-3.5 relative transition-all ${
+                isOverContainer 
+                  ? 'border-blue-500 bg-blue-500/10' 
+                  : 'border-zinc-800/40 bg-zinc-950/20 hover:border-zinc-700/60'
+              }`}
+            >
+              <div className="absolute top-1 left-2 text-[8px] font-bold uppercase text-zinc-500 select-none tracking-widest">
+                📦 Container
+              </div>
+              <div className="space-y-2 mt-4 min-h-[40px]">
+                {childrenList.map((child, childIdx) => (
+                  <React.Fragment key={child.id}>
+                    {renderElementEditor(child, childIdx, el.id, 'container')}
+                  </React.Fragment>
+                ))}
+              </div>
+              {/* Quick cell insert button bar */}
+              <div className="mt-3 pt-2 border-t border-zinc-800/30 flex items-center justify-between gap-1 flex-wrap">
+                <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider">Inserir:</span>
+                <div className="flex gap-1 flex-wrap">
+                  {(['heading', 'text', 'button', 'image', 'grid'] as ElementType[]).map((typeToInsert) => (
+                    <button
+                      key={typeToInsert}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        let defaultContent = 'Novo Bloco';
+                        let defaultStyles: any = {};
+                        if (typeToInsert === 'heading') {
+                          defaultContent = 'Título';
+                          defaultStyles = { fontSize: 16, fontWeight: 'bold' };
+                        } else if (typeToInsert === 'text') {
+                          defaultContent = 'Texto no container.';
+                          defaultStyles = { fontSize: 12 };
+                        } else if (typeToInsert === 'button') {
+                          defaultContent = 'Ação';
+                          defaultStyles = { backgroundColor: '#2563eb', textColor: '#ffffff', borderRadius: 4, fontSize: 11, paddingTop: 5, paddingBottom: 5, paddingLeft: 10, paddingRight: 10 };
+                        } else if (typeToInsert === 'image') {
+                          defaultStyles = { width: 120, align: 'center' };
+                        }
+                        
+                        const newNested: EmailElement = typeToInsert === 'grid' 
+                          ? {
+                              id: `grid_nested_${Date.now()}`,
+                              type: 'grid',
+                              content: '',
+                              styles: { marginBottom: 15 },
+                              rowsCount: 1,
+                              colsCount: 2,
+                              gridCells: { '0-0': [], '0-1': [] }
+                            }
+                          : {
+                              id: `${typeToInsert}_container_${Date.now()}`,
+                              type: typeToInsert,
+                              content: defaultContent,
+                              styles: defaultStyles
+                            };
+                        
+                        onUpdateElement({
+                          ...el,
+                          children: [...childrenList, newNested]
+                        });
+                        onSelectElement(newNested.id);
+                      }}
+                      className="text-[8px] bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-400 hover:text-white px-1.5 py-0.5 rounded cursor-pointer transition-all font-semibold capitalize animate-fade-in"
+                    >
+                      {typeToInsert}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        }
+        case 'grid': {
+          const rows = el.rowsCount || 1;
+          const cols = el.colsCount || 2;
+          const gridCells = el.gridCells || {};
+
+          if (isPurePreview) {
+            return (
+              <div style={elStyle} className="w-full">
+                <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+                  {Array.from({ length: rows }).map((_, r) => (
+                    <React.Fragment key={r}>
+                      {Array.from({ length: cols }).map((_, c) => {
+                        const cellKey = `${r}-${c}`;
+                        const cellElements = gridCells[cellKey] || [];
+                        return (
+                          <div key={cellKey} className="space-y-1.5">
+                            {cellElements.map((child, childIdx) => (
+                              <React.Fragment key={child.id}>
+                                {renderElementEditor(child, childIdx, el.id, 'grid', cellKey, true)}
+                              </React.Fragment>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div style={elStyle} className="w-full border border-dashed border-zinc-800/60 rounded-xl p-3 bg-zinc-950/15">
+              <div className="text-[8px] font-bold uppercase text-zinc-500 tracking-wider mb-2">
+                🎛️ Grid Layout ({rows}x{cols})
+              </div>
+              <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+                {Array.from({ length: rows }).map((_, r) => (
+                  <React.Fragment key={r}>
+                    {Array.from({ length: cols }).map((_, c) => {
+                      const cellKey = `${r}-${c}`;
+                      const cellElements = gridCells[cellKey] || [];
+                      const isOverThisCell = dragOverContainerId === el.id && dragOverGridCellKey === cellKey;
+                      return (
+                        <div
+                          key={cellKey}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setDragOverContainerId(el.id);
+                            setDragOverGridCellKey(cellKey);
+                          }}
+                          onDragLeave={() => {
+                            setDragOverContainerId(null);
+                            setDragOverGridCellKey(null);
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setDragOverContainerId(null);
+                            setDragOverGridCellKey(null);
+                            handleDropUnified(e, { type: 'grid', gridId: el.id, cellKey });
+                          }}
+                          className={`border p-2 rounded-lg space-y-2 min-h-[90px] flex flex-col justify-between transition-all ${
+                            isOverThisCell && !dragOverChildId
+                              ? 'border-blue-500 bg-blue-500/10'
+                              : 'border-zinc-850 bg-zinc-900/10'
+                          }`}
+                        >
+                          <div>
+                            <div className="text-[7px] text-zinc-600 font-mono font-bold uppercase tracking-wider mb-1">Célula {r+1},{c+1}</div>
+                            <div className="space-y-1.5">
+                              {cellElements.map((child, childIdx) => (
+                                <React.Fragment key={child.id}>
+                                  {renderElementEditor(child, childIdx, el.id, 'grid', cellKey)}
+                                </React.Fragment>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Quick insert toolbar inside grid cell */}
+                          <div className="pt-1.5 flex items-center justify-between border-t border-zinc-800/40 flex-wrap gap-1 mt-2">
+                            <span className="text-[7px] text-zinc-500 font-bold uppercase">Inserir:</span>
+                            <div className="flex gap-0.5 flex-wrap">
+                              {(['heading', 'text', 'button', 'image', 'grid'] as ElementType[]).map((typeToInsert) => (
+                                <button
+                                  key={typeToInsert}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    let defaultContent = 'Novo';
+                                    let defaultStyles: any = {};
+                                    if (typeToInsert === 'heading') {
+                                      defaultContent = 'Título';
+                                      defaultStyles = { fontSize: 13, fontWeight: 'bold' };
+                                    } else if (typeToInsert === 'text') {
+                                      defaultContent = 'Texto.';
+                                      defaultStyles = { fontSize: 11 };
+                                    } else if (typeToInsert === 'button') {
+                                      defaultContent = 'CTA';
+                                      defaultStyles = { backgroundColor: '#2563eb', textColor: '#ffffff', borderRadius: 4, fontSize: 10, paddingTop: 4, paddingBottom: 4, paddingLeft: 8, paddingRight: 8 };
+                                    } else if (typeToInsert === 'image') {
+                                      defaultStyles = { width: 100, align: 'center' };
+                                    }
+
+                                    const newNested: EmailElement = typeToInsert === 'grid'
+                                      ? {
+                                          id: `grid_nested_${Date.now()}`,
+                                          type: 'grid',
+                                          content: '',
+                                          styles: { marginBottom: 10 },
+                                          rowsCount: 1,
+                                          colsCount: 2,
+                                          gridCells: { '0-0': [], '0-1': [] }
+                                        }
+                                      : {
+                                          id: `${typeToInsert}_cell_${Date.now()}`,
+                                          type: typeToInsert,
+                                          content: defaultContent,
+                                          styles: defaultStyles
+                                        };
+
+                                    const updatedCellElements = [...cellElements, newNested];
+                                    onUpdateElement({
+                                      ...el,
+                                      gridCells: {
+                                        ...gridCells,
+                                        [cellKey]: updatedCellElements
+                                      }
+                                    });
+                                    onSelectElement(newNested.id);
+                                  }}
+                                  className="text-[7px] bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-400 hover:text-white px-1 py-0.5 rounded cursor-pointer capitalize font-semibold transition-all animate-fade-in"
+                                >
+                                  {typeToInsert}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+          );
+        }
+        default:
+          return null;
+      }
+    };
+
+    if (isPurePreview) {
+      return (
+        <div key={el.id} className="w-full">
+          {renderInnerEditor()}
+        </div>
+      );
+    }
+
+    const isOverThisElement = dragOverChildId === el.id;
+
+    return (
+      <div
+        key={el.id}
+        draggable
+        onDragStart={handleElementDragStart}
+        onDragOver={handleElementDragOver}
+        onDragLeave={handleElementDragLeave}
+        onDrop={handleElementDrop}
+        className={`relative group/editoritem rounded-lg p-1.5 transition-all cursor-pointer ${
+          isSelected
+            ? 'ring-2 ring-blue-500 bg-blue-500/5'
+            : 'hover:bg-zinc-800/10 border border-transparent'
+        } ${isOverThisElement ? 'border-t-2 border-t-blue-500 bg-blue-500/5' : ''}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelectElement(el.id);
+        }}
+      >
+        {/* Actions bar */}
+        <div className="absolute -top-3.5 right-2 bg-zinc-900 text-[10px] text-zinc-100 px-2 py-0.5 rounded font-mono border border-zinc-700 hidden group-hover/editoritem:flex items-center gap-1 shadow-lg z-20 transition-all opacity-0 group-hover/editoritem:opacity-100">
+          <span className="capitalize text-zinc-400 font-bold mr-1">{el.type}</span>
+          {!parentId ? (
+            <>
+              <button
+                disabled={index === 0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  moveElement(index, 'up');
+                }}
+                className="hover:text-blue-400 disabled:opacity-30 cursor-pointer"
+                title="Mover para Cima"
+              >
+                <ArrowUp className="h-3 w-3" />
+              </button>
+              <button
+                disabled={index === elements.length - 1}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  moveElement(index, 'down');
+                }}
+                className="hover:text-blue-400 disabled:opacity-30 cursor-pointer"
+                title="Mover para Baixo"
+              >
+                <ArrowDown className="h-3 w-3" />
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (parentType === 'container' && parentId) {
+                  // Delete nested element from container
+                  const parentContainer = elements.find(item => item.id === parentId);
+                  if (parentContainer && parentContainer.children) {
+                    const updated = parentContainer.children.filter(c => c.id !== el.id);
+                    onUpdateElement({
+                      ...parentContainer,
+                      children: updated
+                    });
+                  }
+                } else if (parentType === 'grid' && parentId && cellKey) {
+                  // Delete nested element from grid
+                  const parentGrid = elements.find(item => item.id === parentId);
+                  if (parentGrid && parentGrid.gridCells) {
+                    const cellElements = parentGrid.gridCells[cellKey] || [];
+                    const updated = cellElements.filter(c => c.id !== el.id);
+                    onUpdateElement({
+                      ...parentGrid,
+                      gridCells: {
+                        ...parentGrid.gridCells,
+                        [cellKey]: updated
+                      }
+                    });
+                  }
+                }
+              }}
+              className="hover:text-red-400 cursor-pointer text-red-500"
+              title="Excluir"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          )}
+          {!parentId && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteElement(el.id);
+              }}
+              className="hover:text-red-400 cursor-pointer text-red-500"
+              title="Excluir"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+
+        {/* Real element content */}
+        <div>
+          {renderInnerEditor()}
+        </div>
+      </div>
+    );
+  };
+
+  const renderCoreEmailDropArea = (isPurePreview = false) => (
     <div
-      onDragOver={(e) => handleDragOver(e)}
-      onDragLeave={handleDragLeave}
-      onDrop={(e) => handleDrop(e)}
+      onDragOver={isPurePreview ? undefined : (e) => handleDragOver(e)}
+      onDragLeave={isPurePreview ? undefined : handleDragLeave}
+      onDrop={isPurePreview ? undefined : (e) => handleDrop(e)}
       style={{
         backgroundColor: globalStyles.backgroundColor,
         fontFamily: globalStyles.fontFamily,
-        minHeight: '340px',
+        minHeight: isPurePreview ? 'auto' : '340px',
       }}
       className={`p-6 transition-all relative flex flex-col justify-start ${
         globalStyles.bodyAlignment === 'left' ? 'items-start' : globalStyles.bodyAlignment === 'right' ? 'items-end' : 'items-center'
       } ${
-        isDragOverCanvas && activeDropIndex === null ? 'ring-4 ring-blue-500 ring-dashed' : ''
+        !isPurePreview && isDragOverCanvas && activeDropIndex === null ? 'ring-4 ring-blue-500 ring-dashed' : ''
       }`}
     >
       {/* Visual drag overlay alert */}
-      {isDragOverCanvas && activeDropIndex === null && (
+      {!isPurePreview && isDragOverCanvas && activeDropIndex === null && (
         <div className="absolute inset-0 bg-blue-500/10 flex items-center justify-center pointer-events-none z-10">
           <span className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg flex items-center gap-1.5 animate-bounce">
             <Plus className="h-4 w-4" /> Solte para adicionar ao final
@@ -760,566 +1305,24 @@ export default function Canvas({
         className="shadow-2xl transition-all relative flex flex-col"
       >
         {elements.length === 0 ? (
-          <div className="py-16 text-center text-zinc-500 flex flex-col items-center justify-center gap-2">
-            <Inbox className="h-10 w-10 text-zinc-600 animate-pulse" />
-            <p className="text-sm font-semibold text-zinc-400">Seu template de email está vazio</p>
-            <p className="text-xs text-zinc-500 max-w-[280px]">
-              Arraste blocos da barra lateral esquerda e solte-os aqui para começar a criar seu design incrível!
-            </p>
-          </div>
+          isPurePreview ? (
+            <div className="py-8 text-center text-zinc-650 text-xs italic">Nenhum conteúdo no e-mail</div>
+          ) : (
+            <div className="py-16 text-center text-zinc-500 flex flex-col items-center justify-center gap-2">
+              <Inbox className="h-10 w-10 text-zinc-600 animate-pulse" />
+              <p className="text-sm font-semibold text-zinc-400">Seu template de email está vazio</p>
+              <p className="text-xs text-zinc-500 max-w-[280px]">
+                Arraste blocos da barra lateral esquerda e solte-os aqui para começar a criar seu design incrível!
+              </p>
+            </div>
+          )
         ) : (
           <div className="space-y-1">
-            {elements.map((el, index) => {
-              const isSelected = selectedElementId === el.id;
-              const elStyle = getElementStyles(el);
-
-              // Render separate views
-              const renderElementBody = () => {
-                switch (el.type) {
-                  case 'heading':
-                    return (
-                      <h2 style={elStyle} className="font-bold leading-tight m-0">
-                        {renderContent(el.content) || 'Título Vazio'}
-                      </h2>
-                    );
-                  case 'text':
-                    return (
-                      <div style={elStyle} className="space-y-2 leading-relaxed">
-                        {el.content.split('\n\n').map((para, i) => (
-                          <p key={i} className="m-0">
-                            {renderContent(para) || 'Parágrafo Vazio'}
-                          </p>
-                        ))}
-                      </div>
-                    );
-                  case 'button': {
-                    const alignment = el.styles.align || 'center';
-                    let alignClass = 'text-center';
-                    if (alignment === 'left') alignClass = 'text-left';
-                    if (alignment === 'right') alignClass = 'text-right';
-
-                    return (
-                      <div className={alignClass}>
-                        <a
-                          href={replaceVariables(el.href || '#', variables)}
-                          style={elStyle}
-                          className="hover:opacity-90 inline-block font-semibold shadow-xs"
-                          onClick={(e) => e.preventDefault()}
-                        >
-                          {renderContent(el.content) || 'Clique Aqui'}
-                        </a>
-                      </div>
-                    );
-                  }
-                  case 'image': {
-                    const imgSrc = replaceVariables(el.src || '', variables) || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=600&auto=format&fit=crop';
-                    const alignment = el.styles.align || 'center';
-                    let alignClass = 'flex justify-center';
-                    if (alignment === 'left') alignClass = 'flex justify-start';
-                    if (alignment === 'right') alignClass = 'flex justify-end';
-
-                    const imageTag = (
-                      <img
-                        src={imgSrc}
-                        alt={el.alt || 'Template Image'}
-                        style={{
-                          width: el.styles.width ? `${el.styles.width}px` : '100%',
-                          height: el.styles.height ? `${el.styles.height}px` : 'auto',
-                          borderRadius: el.styles.borderRadius ? `${el.styles.borderRadius}px` : '0px',
-                          objectFit: 'cover',
-                        }}
-                        className="max-w-full"
-                      />
-                    );
-
-                    return (
-                      <div className={alignClass} style={{ marginTop: el.styles.marginTop, marginBottom: el.styles.marginBottom }}>
-                        {el.href ? (
-                          <a
-                            href={replaceVariables(el.href, variables)}
-                            onClick={(e) => e.preventDefault()}
-                            className="block"
-                          >
-                            {imageTag}
-                          </a>
-                        ) : (
-                          imageTag
-                        )}
-                      </div>
-                    );
-                  }
-                  case 'link':
-                    return (
-                      <div style={{ textAlign: el.styles.align || 'left', marginTop: el.styles.marginTop, marginBottom: el.styles.marginBottom }}>
-                        <a
-                          href={replaceVariables(el.href || '#', variables)}
-                          style={elStyle}
-                          className="underline hover:opacity-85 font-medium"
-                          onClick={(e) => e.preventDefault()}
-                        >
-                          {renderContent(el.content) || 'Link Clicável'}
-                        </a>
-                      </div>
-                    );
-                  case 'divider':
-                    return (
-                      <hr
-                        style={{
-                          borderColor: el.styles.borderColor || '#e2e8f0',
-                          borderWidth: el.styles.borderWidth || 1,
-                          borderStyle: 'solid',
-                          marginTop: el.styles.marginTop !== undefined ? `${el.styles.marginTop}px` : '12px',
-                          marginBottom: el.styles.marginBottom !== undefined ? `${el.styles.marginBottom}px` : '20px',
-                        }}
-                      />
-                    );
-                  case 'spacer':
-                    return (
-                      <div
-                        style={{
-                          height: `${el.styles.height || 24}px`,
-                        }}
-                      />
-                    );
-                  case 'container': {
-                    const childrenList = el.children || [];
-                    return (
-                      <div
-                        style={elStyle}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setDragOverContainerId(el.id);
-                        }}
-                        onDragLeave={() => {
-                          setDragOverContainerId(null);
-                        }}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setDragOverContainerId(null);
-                          handleDropUnified(e, { type: 'container', containerId: el.id });
-                        }}
-                        className={`border border-dashed rounded-xl relative group/container transition-colors ${
-                          dragOverContainerId === el.id && !dragOverChildId
-                            ? 'border-blue-500 bg-blue-500/10'
-                            : 'border-zinc-700/50 bg-zinc-900/10'
-                        }`}
-                      >
-                        {/* Container Label */}
-                        <div className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-2 flex justify-between items-center">
-                          <span>📦 Container</span>
-                          <span className="text-zinc-600">{childrenList.length} elementos</span>
-                        </div>
-                        
-                        {/* Nested elements */}
-                        <div className="space-y-2 min-h-[60px] bg-zinc-950/20 p-2 rounded-lg border border-zinc-800/30">
-                          {childrenList.map((child, childIdx) => {
-                            const isChildSelected = selectedElementId === child.id;
-                            const childStyle = getElementStyles(child);
-                            const isOverThisChild = dragOverContainerId === el.id && dragOverChildId === child.id;
-                            
-                            return (
-                              <div
-                                key={child.id}
-                                draggable
-                                onDragStart={(e) => {
-                                  e.stopPropagation();
-                                  e.dataTransfer.setData('application/react-email-builder-custom-element', JSON.stringify(child));
-                                  e.dataTransfer.setData('application/react-email-builder-source-id', child.id);
-                                }}
-                                onDragOver={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  setDragOverContainerId(el.id);
-                                  setDragOverChildId(child.id);
-                                }}
-                                onDragLeave={() => {
-                                  setDragOverChildId(null);
-                                }}
-                                onDrop={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  setDragOverContainerId(null);
-                                  setDragOverChildId(null);
-                                  handleDropUnified(e, { type: 'container', containerId: el.id, childIndex: childIdx });
-                                }}
-                                className={`relative p-2.5 rounded-lg group/child cursor-pointer border transition-all ${
-                                  isChildSelected 
-                                    ? 'ring-2 ring-blue-500 bg-blue-500/5 border-blue-500/30' 
-                                    : 'hover:bg-zinc-800/20 border-zinc-800/20'
-                                } ${isOverThisChild ? 'border-t-2 border-t-blue-500 bg-blue-500/5' : ''}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onSelectElement(child.id);
-                                }}
-                              >
-                                {/* Nested child control actions */}
-                                <div className="absolute top-1 right-1 bg-zinc-900/90 rounded border border-zinc-700 hidden group-hover/child:flex items-center gap-1 px-1 py-0.5 z-30 shadow-md">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      // Delete nested element!
-                                      const updatedChildren = childrenList.filter(c => c.id !== child.id);
-                                      onUpdateElement({
-                                        ...el,
-                                        children: updatedChildren
-                                      });
-                                    }}
-                                    className="text-red-400 hover:text-red-300 p-0.5"
-                                    title="Remover do container"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </button>
-                                </div>
-                                
-                                {/* Render nested child content */}
-                                <div>
-                                  {child.type === 'heading' && (
-                                    <h3 style={childStyle} className="font-bold m-0 leading-tight">{renderContent(child.content)}</h3>
-                                  )}
-                                  {child.type === 'text' && (
-                                    <div style={childStyle} className="space-y-1">{renderContent(child.content)}</div>
-                                  )}
-                                  {child.type === 'button' && (
-                                    <div className={child.styles.align === 'left' ? 'text-left' : child.styles.align === 'right' ? 'text-right' : 'text-center'}>
-                                      <span style={childStyle} className="inline-block font-semibold rounded-lg px-4 py-2">{renderContent(child.content)}</span>
-                                    </div>
-                                  )}
-                                  {child.type === 'image' && (
-                                    <img src={replaceVariables(child.src || '', variables) || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=600&auto=format&fit=crop'} style={{ width: child.styles.width ? `${child.styles.width}px` : '100%', borderRadius: child.styles.borderRadius ? `${child.styles.borderRadius}px` : '0px' }} alt={child.alt} className="max-w-full" />
-                                  )}
-                                  {child.type === 'link' && (
-                                    <span style={childStyle} className="underline">{renderContent(child.content)}</span>
-                                  )}
-                                  {child.type === 'divider' && (
-                                    <hr style={{ borderColor: child.styles.borderColor || '#e2e8f0', borderWidth: child.styles.borderWidth || 1 }} />
-                                  )}
-                                  {child.type === 'spacer' && (
-                                    <div style={{ height: `${child.styles.height || 24}px` }} />
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        
-                        {/* Quick Insert Toolbar inside Container */}
-                        <div className="mt-3 pt-2 border-t border-zinc-800/40 flex items-center justify-between gap-1.5 flex-wrap">
-                          <span className="text-[10px] text-zinc-500 font-medium">Inserir no Container:</span>
-                          <div className="flex items-center gap-1.5">
-                            {(['heading', 'text', 'button', 'image', 'link', 'divider'] as ElementType[]).map((typeToInsert) => (
-                              <button
-                                key={typeToInsert}
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  let defaultContent = 'Novo Bloco';
-                                  let defaultStyles: any = {};
-                                  if (typeToInsert === 'heading') {
-                                    defaultContent = 'Título Interno';
-                                    defaultStyles = { fontSize: 18, fontWeight: 'bold' };
-                                  } else if (typeToInsert === 'text') {
-                                    defaultContent = 'Texto interno editável.';
-                                    defaultStyles = { fontSize: 13 };
-                                  } else if (typeToInsert === 'button') {
-                                    defaultContent = 'Clique Aqui';
-                                    defaultStyles = { backgroundColor: '#2563eb', textColor: '#ffffff', borderRadius: 6, fontSize: 12, paddingTop: 6, paddingBottom: 6, paddingLeft: 12, paddingRight: 12 };
-                                  } else if (typeToInsert === 'image') {
-                                    defaultStyles = { width: 150, align: 'center' };
-                                  }
-                                  
-                                  const newNested: EmailElement = {
-                                    id: `${typeToInsert}_nested_${Date.now()}`,
-                                    type: typeToInsert,
-                                    content: defaultContent,
-                                    styles: defaultStyles
-                                  };
-                                  
-                                  onUpdateElement({
-                                    ...el,
-                                    children: [...childrenList, newNested]
-                                  });
-                                  onSelectElement(newNested.id);
-                                }}
-                                className="text-[10px] bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white px-2 py-1 rounded-lg cursor-pointer capitalize transition-all"
-                              >
-                                {typeToInsert}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
-                  case 'grid': {
-                    const rows = el.rowsCount || 1;
-                    const cols = el.colsCount || 2;
-                    const gridCells = el.gridCells || {};
-                    
-                    return (
-                      <div style={elStyle} className="border border-dashed border-zinc-700/50 rounded-xl relative group/grid bg-zinc-900/10">
-                        {/* Grid Label */}
-                        <div className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-2">
-                          🎛️ Grid de Layout ({rows}x{cols})
-                        </div>
-                        
-                        {/* Real Table/Flex Columns Simulation */}
-                        <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
-                          {Array.from({ length: rows }).map((_, r) => (
-                            <React.Fragment key={r}>
-                              {Array.from({ length: cols }).map((_, c) => {
-                                const cellKey = `${r}-${c}`;
-                                const cellElements = gridCells[cellKey] || [];
-                                const isOverThisCell = dragOverContainerId === el.id && dragOverGridCellKey === cellKey;
-                                
-                                return (
-                                  <div
-                                    key={cellKey}
-                                    onDragOver={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      setDragOverContainerId(el.id);
-                                      setDragOverGridCellKey(cellKey);
-                                    }}
-                                    onDragLeave={() => {
-                                      setDragOverContainerId(null);
-                                      setDragOverGridCellKey(null);
-                                    }}
-                                    onDrop={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      setDragOverContainerId(null);
-                                      setDragOverGridCellKey(null);
-                                      handleDropUnified(e, { type: 'grid', gridId: el.id, cellKey });
-                                    }}
-                                    className={`border p-2 rounded-lg space-y-2 min-h-[100px] flex flex-col justify-between transition-all ${
-                                      isOverThisCell && !dragOverChildId
-                                        ? 'border-blue-500 bg-blue-500/10'
-                                        : 'border-zinc-800/40 bg-zinc-950/40'
-                                    }`}
-                                  >
-                                    <div>
-                                      <div className="text-[8px] text-zinc-600 font-mono font-bold uppercase tracking-wider mb-1.5">Célula {r+1},{c+1}</div>
-                                      
-                                      {/* Cell Nested Items */}
-                                      <div className="space-y-1.5">
-                                        {cellElements.map((child, childIdx) => {
-                                          const isChildSelected = selectedElementId === child.id;
-                                          const childStyle = getElementStyles(child);
-                                          const isOverThisGridChild = dragOverContainerId === el.id && dragOverGridCellKey === cellKey && dragOverChildId === child.id;
-                                          
-                                          return (
-                                            <div
-                                              key={child.id}
-                                              draggable
-                                              onDragStart={(e) => {
-                                                e.stopPropagation();
-                                                e.dataTransfer.setData('application/react-email-builder-custom-element', JSON.stringify(child));
-                                                e.dataTransfer.setData('application/react-email-builder-source-id', child.id);
-                                              }}
-                                              onDragOver={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                setDragOverContainerId(el.id);
-                                                setDragOverGridCellKey(cellKey);
-                                                setDragOverChildId(child.id);
-                                              }}
-                                              onDragLeave={() => {
-                                                setDragOverChildId(null);
-                                              }}
-                                              onDrop={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                setDragOverContainerId(null);
-                                                setDragOverGridCellKey(null);
-                                                setDragOverChildId(null);
-                                                handleDropUnified(e, { type: 'grid', gridId: el.id, cellKey, childIndex: childIdx });
-                                              }}
-                                              className={`relative p-2 rounded group/gridchild cursor-pointer border transition-all ${
-                                                isChildSelected 
-                                                  ? 'ring-2 ring-blue-500 bg-blue-500/5 border-blue-500/30' 
-                                                  : 'hover:bg-zinc-800/20 border-zinc-800/10'
-                                              } ${isOverThisGridChild ? 'border-t-2 border-t-blue-500 bg-blue-500/5' : ''}`}
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                onSelectElement(child.id);
-                                              }}
-                                            >
-                                              {/* Cell Nested child control actions */}
-                                              <div className="absolute top-0.5 right-0.5 bg-zinc-900/90 rounded border border-zinc-700 hidden group-hover/gridchild:flex items-center gap-1 px-1 py-0.5 z-30 shadow-md">
-                                                <button
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    // Delete nested element from cell
-                                                    const updatedCellElements = cellElements.filter(c => c.id !== child.id);
-                                                    onUpdateElement({
-                                                      ...el,
-                                                      gridCells: {
-                                                        ...gridCells,
-                                                        [cellKey]: updatedCellElements
-                                                      }
-                                                    });
-                                                  }}
-                                                  className="text-red-400 hover:text-red-300 p-0.5"
-                                                  title="Remover da célula"
-                                                >
-                                                  <Trash2 className="h-3 w-3" />
-                                                </button>
-                                              </div>
-                                              
-                                              <div>
-                                                {child.type === 'heading' && (
-                                                  <h4 style={childStyle} className="font-bold m-0 leading-tight">{renderContent(child.content)}</h4>
-                                                )}
-                                                {child.type === 'text' && (
-                                                  <div style={childStyle} className="space-y-0.5 leading-snug">{renderContent(child.content)}</div>
-                                                )}
-                                                {child.type === 'button' && (
-                                                  <div className={child.styles.align === 'left' ? 'text-left' : child.styles.align === 'right' ? 'text-right' : 'text-center'}>
-                                                    <span style={childStyle} className="inline-block font-semibold rounded px-2.5 py-1 text-xs">{renderContent(child.content)}</span>
-                                                  </div>
-                                                )}
-                                                {child.type === 'image' && (
-                                                  <img src={replaceVariables(child.src || '', variables) || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=600&auto=format&fit=crop'} style={{ width: child.styles.width ? `${child.styles.width}px` : '100%', borderRadius: child.styles.borderRadius ? `${child.styles.borderRadius}px` : '0px' }} alt={child.alt} className="max-w-full" />
-                                                )}
-                                                {child.type === 'link' && (
-                                                  <span style={childStyle} className="underline text-xs">{renderContent(child.content)}</span>
-                                                )}
-                                                {child.type === 'divider' && (
-                                                  <hr style={{ borderColor: child.styles.borderColor || '#e2e8f0', borderWidth: child.styles.borderWidth || 1 }} />
-                                                )}
-                                                {child.type === 'spacer' && (
-                                                  <div style={{ height: `${child.styles.height || 24}px` }} />
-                                                )}
-                                              </div>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
-                                    
-                                    {/* Mini plus toolbar per cell */}
-                                    <div className="pt-1.5 flex items-center justify-between border-t border-zinc-850/60 flex-wrap gap-1">
-                                      <span className="text-[7px] text-zinc-500 font-bold uppercase">Inserir:</span>
-                                      <div className="flex gap-0.5">
-                                        {(['heading', 'text', 'button', 'image'] as ElementType[]).map((typeToInsert) => (
-                                          <button
-                                            key={typeToInsert}
-                                            type="button"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              let defaultContent = 'Novo Bloco';
-                                              let defaultStyles: any = {};
-                                              if (typeToInsert === 'heading') {
-                                                defaultContent = 'Título';
-                                                defaultStyles = { fontSize: 14, fontWeight: 'bold' };
-                                              } else if (typeToInsert === 'text') {
-                                                defaultContent = 'Texto célula.';
-                                                defaultStyles = { fontSize: 11 };
-                                              } else if (typeToInsert === 'button') {
-                                                defaultContent = 'CTA';
-                                                defaultStyles = { backgroundColor: '#2563eb', textColor: '#ffffff', borderRadius: 4, fontSize: 10, paddingTop: 4, paddingBottom: 4, paddingLeft: 8, paddingRight: 8 };
-                                              } else if (typeToInsert === 'image') {
-                                                defaultStyles = { width: 100, align: 'center' };
-                                              }
-                                              
-                                              const newNested: EmailElement = {
-                                                id: `${typeToInsert}_gridnested_${Date.now()}`,
-                                                type: typeToInsert,
-                                                content: defaultContent,
-                                                styles: defaultStyles
-                                              };
-                                              
-                                              onUpdateElement({
-                                                ...el,
-                                                gridCells: {
-                                                  ...gridCells,
-                                                  [cellKey]: [...cellElements, newNested]
-                                                }
-                                              });
-                                              onSelectElement(newNested.id);
-                                            }}
-                                            className="text-[7px] bg-zinc-950 border border-zinc-800 hover:bg-zinc-900 text-zinc-400 hover:text-white px-1 py-0.5 rounded cursor-pointer font-bold uppercase transition-all"
-                                          >
-                                            {typeToInsert}
-                                          </button>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </React.Fragment>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  }
-                  default:
-                    return null;
-                }
-              };
-
-              return (
-                <div
-                  key={el.id}
-                  onDragOver={(e) => handleDragOver(e, index)}
-                  onDrop={(e) => handleDrop(e, index)}
-                  className={`relative group rounded-lg p-1.5 transition-all cursor-pointer ${
-                    isSelected
-                      ? 'ring-2 ring-blue-500 bg-blue-500/5'
-                      : 'hover:bg-zinc-800/15 border border-transparent'
-                  }`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelectElement(el.id);
-                  }}
-                >
-                  {/* Drag and Drop middle inserting visual guide */}
-                  {isDragOverCanvas && activeDropIndex === index && (
-                    <div className="absolute -top-1.5 left-0 right-0 h-1 bg-blue-500 rounded-full animate-pulse z-10" />
-                  )}
-
-                  {/* Block visual wrapper handle */}
-                  <div className="absolute -top-3.5 right-2 bg-zinc-900 text-[10px] text-zinc-100 px-2 py-0.5 rounded font-mono border border-zinc-700 hidden group-hover:flex items-center gap-1 shadow-lg z-20 transition-all opacity-0 group-hover:opacity-100">
-                    <span className="capitalize">{el.type}</span>
-                    <button
-                      disabled={index === 0}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        moveElement(index, 'up');
-                      }}
-                      className="hover:text-blue-400 disabled:opacity-30 cursor-pointer"
-                    >
-                      <ArrowUp className="h-3 w-3" />
-                    </button>
-                    <button
-                      disabled={index === elements.length - 1}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        moveElement(index, 'down');
-                      }}
-                      className="hover:text-blue-400 disabled:opacity-30 cursor-pointer"
-                    >
-                      <ArrowDown className="h-3 w-3" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteElement(el.id);
-                      }}
-                      className="hover:text-red-400 cursor-pointer"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </div>
-
-                  {/* Real rendered body */}
-                  <div className="relative">{renderElementBody()}</div>
-                </div>
-              );
-            })}
+            {elements.map((el, index) => (
+              <React.Fragment key={el.id}>
+                {renderElementEditor(el, index, undefined, undefined, undefined, isPurePreview)}
+              </React.Fragment>
+            ))}
           </div>
         )}
       </div>
@@ -1349,9 +1352,10 @@ export default function Canvas({
           </span>
         </div>
 
-        <div className="flex items-center gap-2 self-stretch md:self-auto justify-center">
+        <div className="flex flex-wrap items-center gap-3 self-stretch md:self-auto justify-center">
           <div className="flex items-center bg-zinc-900 p-1 rounded-xl gap-1 border border-zinc-800">
             <button
+              type="button"
               onClick={() => setPreviewDevice('desktop')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 previewDevice === 'desktop'
@@ -1359,9 +1363,10 @@ export default function Canvas({
                   : 'text-zinc-500 hover:text-zinc-300'
               }`}
             >
-              <Laptop className="h-4 w-4" /> Desktop
+              <Laptop className="h-4 w-4" /> <span className="hidden sm:inline">Desktop</span>
             </button>
             <button
+              type="button"
               onClick={() => setPreviewDevice('mobile')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 previewDevice === 'mobile'
@@ -1369,7 +1374,7 @@ export default function Canvas({
                   : 'text-zinc-500 hover:text-zinc-300'
               }`}
             >
-              <Smartphone className="h-4 w-4" /> Mobile
+              <Smartphone className="h-4 w-4" /> <span className="hidden sm:inline">Mobile</span>
             </button>
           </div>
 
@@ -1389,58 +1394,63 @@ export default function Canvas({
       <div className="bg-[#121212] border-b border-zinc-800/50 px-6 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-2 text-[11px] text-zinc-400 font-bold uppercase tracking-wider">
           <Sliders className="h-3.5 w-3.5 text-zinc-500" />
-          <span>Cliente de E-mail (Simulador):</span>
+          <span>Modo de Visualização:</span>
         </div>
         
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          <button
-            onClick={() => setEmailClient('default')}
-            className={`flex-1 sm:flex-initial text-center px-3 py-1 rounded-lg text-xs font-medium cursor-pointer transition-all border ${
-              emailClient === 'default'
-                ? 'bg-blue-600/15 border-blue-500/30 text-blue-400 font-bold'
-                : 'bg-zinc-900 hover:bg-zinc-850 border-zinc-850 text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Padrão (Limpo)
-          </button>
-          <button
-            onClick={() => setEmailClient('gmail')}
-            className={`flex-1 sm:flex-initial text-center px-3 py-1 rounded-lg text-xs font-medium cursor-pointer transition-all border ${
-              emailClient === 'gmail'
-                ? 'bg-red-500/15 border-red-500/30 text-red-400 font-bold'
-                : 'bg-zinc-900 hover:bg-zinc-850 border-zinc-850 text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Gmail
-          </button>
-          <button
-            onClick={() => setEmailClient('outlook')}
-            className={`flex-1 sm:flex-initial text-center px-3 py-1 rounded-lg text-xs font-medium cursor-pointer transition-all border ${
-              emailClient === 'outlook'
-                ? 'bg-blue-500/15 border-blue-500/30 text-blue-400 font-bold'
-                : 'bg-zinc-900 hover:bg-zinc-850 border-zinc-850 text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Outlook
-          </button>
-          <button
-            onClick={() => setEmailClient('hotmail')}
-            className={`flex-1 sm:flex-initial text-center px-3 py-1 rounded-lg text-xs font-medium cursor-pointer transition-all border ${
-              emailClient === 'hotmail'
-                ? 'bg-amber-500/15 border-amber-500/30 text-amber-400 font-bold'
-                : 'bg-zinc-900 hover:bg-zinc-850 border-zinc-850 text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Hotmail
-          </button>
+          <div className="flex items-center bg-zinc-950 p-1 rounded-xl gap-1 border border-zinc-800 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => setCanvasMode('editor')}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                canvasMode === 'editor'
+                  ? 'bg-zinc-800 text-blue-400 shadow-sm border border-zinc-700/50 font-bold'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+              title="Modo Editor (Com guias e controle de arrastar)"
+            >
+              <Edit3 className="h-3.5 w-3.5" />
+              <span>Editor</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCanvasMode('preview')}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                canvasMode === 'preview'
+                  ? 'bg-zinc-800 text-emerald-400 shadow-sm border border-zinc-700/50 font-bold'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+              title="Modo Preview (Simulação fidedigna do e-mail)"
+            >
+              <Eye className="h-3.5 w-3.5" />
+              <span>Preview</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCanvasMode('both')}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                canvasMode === 'both'
+                  ? 'bg-zinc-800 text-purple-400 shadow-sm border border-zinc-700/50 font-bold'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+              title="Lado a Lado (Editor e Preview juntos)"
+            >
+              <Columns className="h-3.5 w-3.5" />
+              <span>Lado a Lado</span>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* 3. Simulator Frame Body */}
       <div key={renderKey} className="flex-1 overflow-y-auto p-4 md:p-8 flex justify-center items-start bg-[#0a0a0a]">
+        {(() => {
+          const renderSimulatorEnvelope = (isPurePreview = false) => {
+            return (
+
         
-        {/* Dynamic envelope depending on selection and device */}
-        {emailClient === 'default' ? (
+        // Dynamic envelope depending on selection and device
+        emailClient === 'default' ? (
           /* DEFAULT CLEAN DESIGN */
           <div
             className={`bg-[#0f0f0f] rounded-2xl border border-zinc-800 shadow-xl transition-all duration-300 ${
@@ -1465,7 +1475,7 @@ export default function Canvas({
 
             {/* Email canvas body */}
             <div className="rounded-b-2xl overflow-hidden bg-zinc-900">
-              {coreEmailDropArea}
+              {renderCoreEmailDropArea(isPurePreview)}
             </div>
           </div>
 
@@ -1594,7 +1604,7 @@ export default function Canvas({
 
                     {/* Inner core email builder drop area */}
                     <div className="border border-zinc-200/80 rounded-2xl overflow-hidden shadow-xs bg-zinc-50 max-w-[620px] mx-auto">
-                      {coreEmailDropArea}
+                      {renderCoreEmailDropArea(isPurePreview)}
                     </div>
 
                   </div>
@@ -1657,7 +1667,7 @@ export default function Canvas({
 
                 {/* Core Email Area */}
                 <div className="border border-zinc-200 rounded-xl overflow-hidden shadow-2xs max-w-full">
-                  {coreEmailDropArea}
+                  {renderCoreEmailDropArea(isPurePreview)}
                 </div>
 
               </div>
@@ -1766,7 +1776,7 @@ export default function Canvas({
                   {/* Core Email Area */}
                   <div className="p-6 bg-[#faf9f8] flex-1 overflow-y-auto flex justify-center">
                     <div className="border border-[#e1dfdd] rounded-xl overflow-hidden bg-white shadow-xs max-w-[620px] w-full">
-                      {coreEmailDropArea}
+                      {renderCoreEmailDropArea(isPurePreview)}
                     </div>
                   </div>
 
@@ -1811,7 +1821,7 @@ export default function Canvas({
 
                 {/* Email Canvas container */}
                 <div className="border border-zinc-200 rounded-xl overflow-hidden shadow-2xs max-w-full">
-                  {coreEmailDropArea}
+                  {renderCoreEmailDropArea(isPurePreview)}
                 </div>
 
               </div>
@@ -1888,7 +1898,7 @@ export default function Canvas({
                   {/* Core Email Area */}
                   <div className="p-6 flex-1 overflow-y-auto bg-zinc-50/50 flex justify-center">
                     <div className="border border-zinc-200 rounded-xl overflow-hidden bg-white shadow-md max-w-[620px] w-full">
-                      {coreEmailDropArea}
+                      {renderCoreEmailDropArea(isPurePreview)}
                     </div>
                   </div>
 
@@ -1930,15 +1940,44 @@ export default function Canvas({
 
                 {/* Email canvas container */}
                 <div className="border border-zinc-200 rounded-xl overflow-hidden shadow-2xs max-w-full">
-                  {coreEmailDropArea}
+                  {renderCoreEmailDropArea(isPurePreview)}
                 </div>
 
               </div>
 
             </div>
           )
-        )}
+        )
 
+
+            );
+          };
+
+          if (canvasMode === 'both') {
+            return (
+              <div className="w-full flex flex-col xl:flex-row gap-6 justify-center items-start max-w-full">
+                <div className="flex-1 flex flex-col items-center gap-2 max-w-full">
+                  <span className="text-[10px] uppercase tracking-widest font-bold text-blue-400 bg-blue-950/40 border border-blue-900/40 px-3 py-1 rounded-full flex items-center gap-1.5 select-none shadow-xs shrink-0">
+                    <Edit3 className="h-3 w-3 animate-pulse" /> Editor (Modo Interativo)
+                  </span>
+                  <div className="w-full flex justify-center">
+                    {renderSimulatorEnvelope(false)}
+                  </div>
+                </div>
+                <div className="flex-1 flex flex-col items-center gap-2 max-w-full">
+                  <span className="text-[10px] uppercase tracking-widest font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-900/40 px-3 py-1 rounded-full flex items-center gap-1.5 select-none shadow-xs shrink-0">
+                    <Eye className="h-3 w-3" /> Preview (Renderização Real)
+                  </span>
+                  <div className="w-full flex justify-center">
+                    {renderSimulatorEnvelope(true)}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          return renderSimulatorEnvelope(canvasMode === 'preview');
+        })()}
       </div>
     </div>
   );

@@ -310,11 +310,58 @@ export function generateReactEmailCode(
     }
     if (styles.fontSize) styleObj.fontSize = `${styles.fontSize}px`;
     if (styles.fontWeight) styleObj.fontWeight = styles.fontWeight;
-    if (styles.borderRadius !== undefined) styleObj.borderRadius = `${styles.borderRadius}px`;
-    if (styles.borderWidth !== undefined) {
-      styleObj.borderStyle = 'solid';
-      styleObj.borderWidth = `${styles.borderWidth}px`;
-      if (styles.borderColor) styleObj.borderColor = styles.borderColor;
+    const tl = styles.borderRadiusTopLeft !== undefined ? styles.borderRadiusTopLeft : styles.borderRadius;
+    const tr = styles.borderRadiusTopRight !== undefined ? styles.borderRadiusTopRight : styles.borderRadius;
+    const bl = styles.borderRadiusBottomLeft !== undefined ? styles.borderRadiusBottomLeft : styles.borderRadius;
+    const br = styles.borderRadiusBottomRight !== undefined ? styles.borderRadiusBottomRight : styles.borderRadius;
+
+    if (tl !== undefined) styleObj.borderTopLeftRadius = `${tl}px`;
+    if (tr !== undefined) styleObj.borderTopRightRadius = `${tr}px`;
+    if (bl !== undefined) styleObj.borderBottomLeftRadius = `${bl}px`;
+    if (br !== undefined) styleObj.borderBottomRightRadius = `${br}px`;
+
+    const borderWidth = styles.borderWidth !== undefined ? styles.borderWidth : 0;
+    const borderStyle = styles.borderStyle || 'solid';
+    const borderColor = styles.borderColor || '#cbd5e1';
+    const borderSides = styles.borderSides || ['top', 'bottom', 'left', 'right'];
+
+    if (borderWidth > 0) {
+      if (borderSides.includes('top')) {
+        styleObj.borderTopWidth = `${borderWidth}px`;
+        styleObj.borderTopStyle = borderStyle;
+        styleObj.borderTopColor = borderColor;
+      } else {
+        styleObj.borderTopWidth = '0px';
+      }
+      if (borderSides.includes('bottom')) {
+        styleObj.borderBottomWidth = `${borderWidth}px`;
+        styleObj.borderBottomStyle = borderStyle;
+        styleObj.borderBottomColor = borderColor;
+      } else {
+        styleObj.borderBottomWidth = '0px';
+      }
+      if (borderSides.includes('left')) {
+        styleObj.borderLeftWidth = `${borderWidth}px`;
+        styleObj.borderLeftStyle = borderStyle;
+        styleObj.borderLeftColor = borderColor;
+      } else {
+        styleObj.borderLeftWidth = '0px';
+      }
+      if (borderSides.includes('right')) {
+        styleObj.borderRightWidth = `${borderWidth}px`;
+        styleObj.borderRightStyle = borderStyle;
+        styleObj.borderRightColor = borderColor;
+      } else {
+        styleObj.borderRightWidth = '0px';
+      }
+    } else if (el.type === 'divider') {
+      styleObj.borderTopWidth = '1px';
+      styleObj.borderTopStyle = 'solid';
+      styleObj.borderTopColor = borderColor;
+    }
+
+    if (el.type === 'container' || el.type === 'grid') {
+      styleObj.overflow = 'hidden';
     }
 
     // Padding settings
@@ -575,7 +622,7 @@ export function compileTemplateToEmailHtml(template: EmailTemplate): string {
     if (!text) return '';
     let formatted = text;
     
-    // Replace custom elements with inline HTML
+    // First apply markdown formatting to get clean HTML tags for style
     formatted = formatted
       .replace(/\*\*([\s\S]*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*([\s\S]*?)\*/g, '<em>$1</em>')
@@ -584,6 +631,28 @@ export function compileTemplateToEmailHtml(template: EmailTemplate): string {
       .replace(/__([\s\S]*?)__/g, '<u>$1</u>')
       .replace(/<span\s+style="font-size:\s*(\d+)px;?"\s*>([\s\S]*?)<\/span>/gi, '<span style="font-size: $1px;">$2</span>');
       
+    // Find all valid HTML tags that we want to preserve
+    const validTagsRegex = /<\/?(?:strong|em|u|strike|span|b|i|s|strong|em)(?:\s+style="font-size:\s*\d+px;")?>/gi;
+    const tokens: string[] = [];
+    
+    // Replace valid tags with placeholders
+    formatted = formatted.replace(validTagsRegex, (match) => {
+      const token = `__VALID_TAG_TOKEN_${tokens.length}__`;
+      tokens.push(match);
+      return token;
+    });
+
+    // Now escape all remaining & to &amp;, < to &lt;, > to &gt;
+    formatted = formatted
+      .replace(/&(?!amp;|lt;|gt;|quot;|apos;|#\d+;)/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    // Restore the valid tags
+    tokens.forEach((tag, index) => {
+      formatted = formatted.replace(`__VALID_TAG_TOKEN_${index}__`, tag);
+    });
+    
     // Replace variable placeholders with values
     variables.forEach(v => {
       const regex = new RegExp(`{{\\s*${v.key}\\s*}}`, 'g');
@@ -732,6 +801,66 @@ export function compileTemplateToEmailHtml(template: EmailTemplate): string {
     const inlineStyle = getElementStyles(el);
     const alignAttr = el.styles.align ? ` align="${el.styles.align}"` : '';
 
+    const getBorderAndRadiusStyles = (element: EmailElement): string => {
+      const s = element.styles || {};
+      const stylesList: string[] = [];
+      
+      const tl = s.borderRadiusTopLeft !== undefined ? s.borderRadiusTopLeft : s.borderRadius;
+      const tr = s.borderRadiusTopRight !== undefined ? s.borderRadiusTopRight : s.borderRadius;
+      const bl = s.borderRadiusBottomLeft !== undefined ? s.borderRadiusBottomLeft : s.borderRadius;
+      const br = s.borderRadiusBottomRight !== undefined ? s.borderRadiusBottomRight : s.borderRadius;
+
+      const numTl = tl !== undefined ? Number(tl) : undefined;
+      const numTr = tr !== undefined ? Number(tr) : undefined;
+      const numBl = bl !== undefined ? Number(bl) : undefined;
+      const numBr = br !== undefined ? Number(br) : undefined;
+
+      const hasRadius = (numTl && numTl > 0) || (numTr && numTr > 0) || (numBl && numBl > 0) || (numBr && numBr > 0);
+
+      if (numTl !== undefined && numTr !== undefined && numBl !== undefined && numBr !== undefined && numTl === numTr && numTr === numBl && numBl === numBr) {
+        if (numTl > 0) {
+          stylesList.push(`border-radius: ${numTl}px`);
+        }
+      } else {
+        if (numTl !== undefined && numTl > 0) stylesList.push(`border-top-left-radius: ${numTl}px`);
+        if (numTr !== undefined && numTr > 0) stylesList.push(`border-top-right-radius: ${numTr}px`);
+        if (numBl !== undefined && numBl > 0) stylesList.push(`border-bottom-left-radius: ${numBl}px`);
+        if (numBr !== undefined && numBr > 0) stylesList.push(`border-bottom-right-radius: ${numBr}px`);
+      }
+
+      let borderWidth = 0;
+      if (s.borderWidth !== undefined) {
+        const parsed = Number(s.borderWidth);
+        if (!isNaN(parsed)) borderWidth = parsed;
+      }
+      const borderStyle = s.borderStyle || 'solid';
+      const borderColor = s.borderColor || '#cbd5e1';
+      const borderSides = s.borderSides || ['top', 'bottom', 'left', 'right'];
+
+      if (borderWidth > 0) {
+        if (borderSides.length === 4 && borderSides.includes('top') && borderSides.includes('bottom') && borderSides.includes('left') && borderSides.includes('right')) {
+          stylesList.push(`border: ${borderWidth}px ${borderStyle} ${borderColor}`);
+        } else {
+          if (borderSides.includes('top')) stylesList.push(`border-top: ${borderWidth}px ${borderStyle} ${borderColor}`);
+          if (borderSides.includes('bottom')) stylesList.push(`border-bottom: ${borderWidth}px ${borderStyle} ${borderColor}`);
+          if (borderSides.includes('left')) stylesList.push(`border-left: ${borderWidth}px ${borderStyle} ${borderColor}`);
+          if (borderSides.includes('right')) stylesList.push(`border-right: ${borderWidth}px ${borderStyle} ${borderColor}`);
+        }
+      } else if (element.type === 'divider') {
+        stylesList.push(`border-top: 1px solid ${borderColor}`);
+      }
+
+      if (hasRadius) {
+        stylesList.push(`border-collapse: separate`);
+      }
+
+      if (element.type === 'container' || element.type === 'grid') {
+        stylesList.push(`overflow: hidden`);
+      }
+
+      return stylesList.join('; ');
+    };
+
     switch (el.type) {
       case 'heading': {
         const textChild = formatTextForHtml(el.content);
@@ -745,12 +874,11 @@ export function compileTemplateToEmailHtml(template: EmailTemplate): string {
         
         // Background color and borders
         const bgStyle = el.styles.backgroundColor ? `background-color: ${el.styles.backgroundColor};` : '';
-        const borderStyle = el.styles.borderWidth ? `border: ${el.styles.borderWidth}px solid ${el.styles.borderColor || '#000000'};` : '';
-        const radiusStyle = el.styles.borderRadius ? `border-radius: ${el.styles.borderRadius}px;` : '';
+        const borderAndRadius = getBorderAndRadiusStyles(el);
         
         return `            <!-- Heading -->
             <tr>
-              <td style="padding-top: ${pt}px; padding-bottom: ${pb}px; padding-left: ${pl}px; padding-right: ${pr}px; margin: 0;${bgStyle ? ' ' + bgStyle : ''}${borderStyle ? ' ' + borderStyle : ''}${radiusStyle ? ' ' + radiusStyle : ''}"${alignAttr}>
+              <td style="padding-top: ${pt}px; padding-bottom: ${pb}px; padding-left: ${pl}px; padding-right: ${pr}px; margin: 0;${bgStyle ? ' ' + bgStyle : ''}${borderAndRadius ? ' ' + borderAndRadius + ';' : ''}"${alignAttr}>
                 <h1 style="margin: 0; ${innerStyle}">
                   ${textChild}
                 </h1>
@@ -767,8 +895,7 @@ export function compileTemplateToEmailHtml(template: EmailTemplate): string {
         const pr = (el.styles.paddingRight ?? 0) + (el.styles.marginRight ?? 0);
         
         const bgStyle = el.styles.backgroundColor ? `background-color: ${el.styles.backgroundColor};` : '';
-        const borderStyle = el.styles.borderWidth ? `border: ${el.styles.borderWidth}px solid ${el.styles.borderColor || '#000000'};` : '';
-        const radiusStyle = el.styles.borderRadius ? `border-radius: ${el.styles.borderRadius}px;` : '';
+        const borderAndRadius = getBorderAndRadiusStyles(el);
 
         const paragraphsHtml = paragraphs.map((p, index) => {
           const textChild = formatTextForHtml(p);
@@ -778,7 +905,7 @@ export function compileTemplateToEmailHtml(template: EmailTemplate): string {
 
         return `            <!-- Text Block -->
             <tr>
-              <td style="padding-top: ${pt}px; padding-bottom: ${pb}px; padding-left: ${pl}px; padding-right: ${pr}px; margin: 0;${bgStyle ? ' ' + bgStyle : ''}${borderStyle ? ' ' + borderStyle : ''}${radiusStyle ? ' ' + radiusStyle : ''}"${alignAttr}>
+              <td style="padding-top: ${pt}px; padding-bottom: ${pb}px; padding-left: ${pl}px; padding-right: ${pr}px; margin: 0;${bgStyle ? ' ' + bgStyle : ''}${borderAndRadius ? ' ' + borderAndRadius + ';' : ''}"${alignAttr}>
                 ${paragraphsHtml}
               </td>
             </tr>`;
@@ -827,7 +954,7 @@ export function compileTemplateToEmailHtml(template: EmailTemplate): string {
                 <table border="0" cellspacing="0" cellpadding="0">
                   <tr>
                     <td align="center" style="margin: 0;">
-                      <a href="${el.href || '#'}" target="_blank" style="display: inline-block; font-family: ${globalStyles.fontFamily || 'system-ui, -apple-system, sans-serif'}; font-size: ${el.styles.fontSize || 16}px; font-weight: ${el.styles.fontWeight || 'semibold'}; color: ${buttonTextColor}; background-color: ${buttonBgColor}; text-decoration: none; border-top-left-radius: ${el.styles.borderRadiusTopLeft ?? el.styles.borderRadius ?? 8}px; border-top-right-radius: ${el.styles.borderRadiusTopRight ?? el.styles.borderRadius ?? 8}px; border-bottom-left-radius: ${el.styles.borderRadiusBottomLeft ?? el.styles.borderRadius ?? 8}px; border-bottom-right-radius: ${el.styles.borderRadiusBottomRight ?? el.styles.borderRadius ?? 8}px; padding-top: ${el.styles.paddingTop ?? 12}px; padding-bottom: ${el.styles.paddingBottom ?? 12}px; padding-left: ${el.styles.paddingLeft ?? 24}px; padding-right: ${el.styles.paddingRight ?? 24}px; border: ${el.styles.borderWidth ? `${el.styles.borderWidth}px solid ${el.styles.borderColor || '#000000'}` : 'none'};">
+                      <a href="${el.href || '#'}" target="_blank" style="display: inline-block; font-family: ${globalStyles.fontFamily || 'system-ui, -apple-system, sans-serif'}; font-size: ${el.styles.fontSize || 16}px; font-weight: ${el.styles.fontWeight || 'semibold'}; color: ${buttonTextColor}; background-color: ${buttonBgColor}; text-decoration: none; ${getBorderAndRadiusStyles(el)}; padding-top: ${el.styles.paddingTop ?? 12}px; padding-bottom: ${el.styles.paddingBottom ?? 12}px; padding-left: ${el.styles.paddingLeft ?? 24}px; padding-right: ${el.styles.paddingRight ?? 24}px;">
                         ${textChild}
                       </a>
                     </td>
@@ -837,18 +964,7 @@ export function compileTemplateToEmailHtml(template: EmailTemplate): string {
             </tr>`;
       }
       case 'image': {
-        const imgStyles: string[] = [];
-        if (el.styles.borderRadiusTopLeft !== undefined) imgStyles.push(`border-top-left-radius: ${el.styles.borderRadiusTopLeft}px`);
-        if (el.styles.borderRadiusTopRight !== undefined) imgStyles.push(`border-top-right-radius: ${el.styles.borderRadiusTopRight}px`);
-        if (el.styles.borderRadiusBottomLeft !== undefined) imgStyles.push(`border-bottom-left-radius: ${el.styles.borderRadiusBottomLeft}px`);
-        if (el.styles.borderRadiusBottomRight !== undefined) imgStyles.push(`border-bottom-right-radius: ${el.styles.borderRadiusBottomRight}px`);
-        if (el.styles.borderRadius !== undefined && el.styles.borderRadiusTopLeft === undefined) {
-          imgStyles.push(`border-radius: ${el.styles.borderRadius}px`);
-        }
-        if (el.styles.borderWidth !== undefined) {
-          imgStyles.push(`border: ${el.styles.borderWidth}px solid ${el.styles.borderColor || '#000000'}`);
-        }
-
+        const borderAndRadius = getBorderAndRadiusStyles(el);
         const widthVal = el.styles.width ? `${el.styles.width}` : '500';
         const heightVal = el.styles.height ? ` height="${el.styles.height}"` : '';
         const alignment = el.styles.align || 'center';
@@ -858,7 +974,8 @@ export function compileTemplateToEmailHtml(template: EmailTemplate): string {
         const pl = (el.styles.paddingLeft ?? 0) + (el.styles.marginLeft ?? 0);
         const pr = (el.styles.paddingRight ?? 0) + (el.styles.marginRight ?? 0);
 
-        const baseImg = `<img src="${el.src || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=600&auto=format&fit=crop'}" alt="${el.alt || 'Image'}" width="${widthVal}"${heightVal} style="display: block; max-width: 100%; border: 0;${imgStyles.length > 0 ? ' ' + imgStyles.join('; ') : ''}" />`;
+        const borderStyleVal = borderAndRadius ? borderAndRadius : 'border: 0;';
+        const baseImg = `<img src="${el.src || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=600&auto=format&fit=crop'}" alt="${el.alt || 'Image'}" width="${widthVal}"${heightVal} style="display: block; max-width: 100%; ${borderStyleVal}" />`;
 
         return `            <!-- Image -->
             <tr>
@@ -913,8 +1030,9 @@ export function compileTemplateToEmailHtml(template: EmailTemplate): string {
         const childrenHtml = (el.children || []).map(child => compileElementToHtml(child)).join('\n');
         const containerBg = el.styles.backgroundColor ? `background-color: ${el.styles.backgroundColor};` : '';
         const containerPadding = `padding-top: ${el.styles.paddingTop ?? 16}px; padding-bottom: ${el.styles.paddingBottom ?? 16}px; padding-left: ${el.styles.paddingLeft ?? 16}px; padding-right: ${el.styles.paddingRight ?? 16}px;`;
-        const containerBorder = el.styles.borderWidth ? `border: ${el.styles.borderWidth}px solid ${el.styles.borderColor || '#e2e8f0'};` : '';
-        const containerRadius = el.styles.borderRadius ? `border-radius: ${el.styles.borderRadius}px;` : '';
+        const borderAndRadius = getBorderAndRadiusStyles(el);
+        const hasRadius = borderAndRadius.includes('border-radius');
+        const tableBorderCollapse = hasRadius ? 'separate' : 'collapse';
         
         const mt = el.styles.marginTop ?? 0;
         const mb = el.styles.marginBottom ?? 16;
@@ -924,7 +1042,7 @@ export function compileTemplateToEmailHtml(template: EmailTemplate): string {
         return `            <!-- Container -->
             <tr>
               <td style="padding-top: ${mt}px; padding-bottom: ${mb}px; padding-left: ${ml}px; padding-right: ${mr}px; margin: 0;">
-                <table border="0" cellspacing="0" cellpadding="0" width="100%" style="width: 100%; ${containerBg} ${containerPadding} ${containerBorder} ${containerRadius}">
+                <table border="0" cellspacing="0" cellpadding="0" width="100%" style="width: 100%; border-collapse: ${tableBorderCollapse}; ${containerBg} ${borderAndRadius} ${containerPadding}">
                   ${childrenHtml}
                 </table>
               </td>
@@ -937,8 +1055,9 @@ export function compileTemplateToEmailHtml(template: EmailTemplate): string {
         
         const gridBg = el.styles.backgroundColor ? `background-color: ${el.styles.backgroundColor};` : '';
         const gridPadding = `padding-top: ${el.styles.paddingTop ?? 8}px; padding-bottom: ${el.styles.paddingBottom ?? 8}px; padding-left: ${el.styles.paddingLeft ?? 8}px; padding-right: ${el.styles.paddingRight ?? 8}px;`;
-        const gridBorder = el.styles.borderWidth ? `border: ${el.styles.borderWidth}px solid ${el.styles.borderColor || '#e2e8f0'};` : '';
-        const gridRadius = el.styles.borderRadius ? `border-radius: ${el.styles.borderRadius}px;` : '';
+        const borderAndRadius = getBorderAndRadiusStyles(el);
+        const hasRadius = borderAndRadius.includes('border-radius');
+        const tableBorderCollapse = hasRadius ? 'separate' : 'collapse';
         
         const mt = el.styles.marginTop ?? 0;
         const mb = el.styles.marginBottom ?? 16;
@@ -965,7 +1084,7 @@ export function compileTemplateToEmailHtml(template: EmailTemplate): string {
         return `            <!-- Grid -->
             <tr>
               <td style="padding-top: ${mt}px; padding-bottom: ${mb}px; padding-left: ${ml}px; padding-right: ${mr}px; margin: 0;">
-                <table border="0" cellspacing="0" cellpadding="0" width="100%" style="width: 100%; table-layout: fixed; ${gridBg} ${gridPadding} ${gridBorder} ${gridRadius}">
+                <table border="0" cellspacing="0" cellpadding="0" width="100%" style="width: 100%; table-layout: fixed; border-collapse: ${tableBorderCollapse}; ${gridBg} ${borderAndRadius} ${gridPadding}">
                   ${gridRowsHtml}
                 </table>
               </td>
@@ -1029,7 +1148,7 @@ export function compileTemplateToEmailHtml(template: EmailTemplate): string {
 <body style="background-color: ${globalStyles.backgroundColor}; margin: 0; padding: 40px 0; font-family: ${globalStyles.fontFamily};">
   <center>
     <!-- Main Email Container table -->
-    <table border="0" align="${alignAttrVal}" cellspacing="0" cellpadding="0" width="100%" style="${widthLimitStyle} background-color: ${globalStyles.containerColor}; border-radius: ${globalStyles.borderRadius}px; border: 1px solid #eaeaea; color: ${globalStyles.textColor}; font-family: ${globalStyles.fontFamily}; text-align: left; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); ${marginStyle} ${alignStyle}">
+    <table border="0" align="${alignAttrVal}" cellspacing="0" cellpadding="0" width="100%" style="${widthLimitStyle} background-color: ${globalStyles.containerColor}; border-radius: ${globalStyles.borderRadius}px; border: 1px solid #eaeaea; border-collapse: separate; color: ${globalStyles.textColor}; font-family: ${globalStyles.fontFamily}; text-align: left; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); ${marginStyle} ${alignStyle}">
       <tr>
         <td style="padding: ${globalStyles.padding}px;">
           <table border="0" cellspacing="0" cellpadding="0" width="100%" style="width: 100%;">
@@ -1067,7 +1186,7 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
         type: 'heading',
         content: 'Resultados Consolidados: {{quarterPeriod}} 📈',
         styles: {
-          fontSize: 22,
+          fontSize: 24,
           fontWeight: 'bold',
           textColor: '#0f172a',
           align: 'left',
@@ -1075,9 +1194,27 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
         }
       },
       {
+        id: 'emp_img_growth_top',
+        type: 'image',
+        content: '',
+        src: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&auto=format&fit=crop&q=80',
+        alt: 'Business Intelligence and Charts',
+        styles: {
+          width: 536,
+          height: 160,
+          borderRadius: 8,
+          marginBottom: 20,
+          align: 'center'
+        }
+      },
+      {
         id: 'emp_intro',
         type: 'text',
-        content: 'Prezada {{directorName}},\n\nTemos o prazer de compartilhar os resultados financeiros e operacionais consolidados relativos ao período de **{{quarterPeriod}}**.\n\nNosso desempenho superou as expectativas iniciais, registrando um crescimento expressivo de **{{growthRate}}** em relação ao trimestre anterior. Este resultado foi impulsionado pela otimização das campanhas digitais e pelo aumento de retenção de clientes recorrentes.',
+        content: `Prezada {{directorName}},
+
+Temos o prazer de compartilhar os resultados financeiros e operacionais consolidados relativos ao período de **{{quarterPeriod}}**.
+
+Nosso desempenho superou as expectativas iniciais, registrando um crescimento expressivo de **{{growthRate}}** em relação ao trimestre anterior. Este resultado foi impulsionado pela otimização das campanhas digitais e pelo aumento de retenção de clientes recorrentes.`,
         styles: {
           fontSize: 14,
           textColor: '#334155',
@@ -1090,8 +1227,9 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
         type: 'grid',
         content: '',
         styles: {
-          marginBottom: 20
+          marginBottom: 24
         },
+        rowsCount: 1,
         colsCount: 2,
         gridCells: {
           '0-0': [
@@ -1113,7 +1251,20 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
               styles: {
                 fontSize: 12,
                 textColor: '#475569',
-                marginBottom: 0
+                marginBottom: 10
+              }
+            },
+            {
+              id: 'emp_grid_img1',
+              type: 'image',
+              content: '',
+              src: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=200&auto=format&fit=crop',
+              alt: 'Sales Growth',
+              styles: {
+                width: 120,
+                height: 60,
+                borderRadius: 4,
+                align: 'left'
               }
             }
           ],
@@ -1136,24 +1287,23 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
               styles: {
                 fontSize: 12,
                 textColor: '#475569',
-                marginBottom: 0
+                marginBottom: 10
+              }
+            },
+            {
+              id: 'emp_grid_img2',
+              type: 'image',
+              content: '',
+              src: 'https://images.unsplash.com/photo-1552581230-c01bc0d48403?w=200&auto=format&fit=crop',
+              alt: 'Retention Team',
+              styles: {
+                width: 120,
+                height: 60,
+                borderRadius: 4,
+                align: 'left'
               }
             }
           ]
-        }
-      },
-      {
-        id: 'emp_img_growth',
-        type: 'image',
-        content: '',
-        src: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=600&auto=format&fit=crop&q=80',
-        alt: 'Business Growth Chart',
-        styles: {
-          width: 536,
-          height: 180,
-          borderRadius: 8,
-          marginBottom: 20,
-          align: 'center'
         }
       },
       {
@@ -1248,7 +1398,7 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
         type: 'heading',
         content: 'Fala, {{friendName}}! Tudo certo? 🙌',
         styles: {
-          fontSize: 22,
+          fontSize: 24,
           fontWeight: 'bold',
           textColor: '#78350f',
           align: 'center',
@@ -1258,7 +1408,9 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
       {
         id: 'cas_text',
         type: 'text',
-        content: 'Está na hora daquele nosso reencontro para jogar conversa fora, dar boas risadas e, claro, comer muita pizza!\n\nCombinamos de nos reunir nesta **{{eventTime}}** lá na **{{location}}**.',
+        content: `Está na hora daquele nosso reencontro para jogar conversa fora, dar boas risadas e, claro, comer muita pizza!
+
+Combinamos de nos reunir nesta **{{eventTime}}** lá na **{{location}}**.`,
         styles: {
           fontSize: 14,
           textColor: '#92400e',
@@ -1273,6 +1425,7 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
         styles: {
           marginBottom: 20
         },
+        rowsCount: 1,
         colsCount: 2,
         gridCells: {
           '0-0': [
@@ -1281,7 +1434,7 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
               type: 'heading',
               content: 'Cardápio Especial 🍕',
               styles: {
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: 'bold',
                 textColor: '#d97706',
                 marginBottom: 4
@@ -1290,10 +1443,24 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
             {
               id: 'cas_grid_t1',
               type: 'text',
-              content: 'Rodízio completo com mais de 20 sabores salgados e doces artesanais assados no forno a lenha.',
+              content: 'Mais de 20 sabores salgados e doces assados no forno a lenha, com opções vegetarianas incríveis!',
               styles: {
                 fontSize: 11,
-                textColor: '#78350f'
+                textColor: '#78350f',
+                marginBottom: 10
+              }
+            },
+            {
+              id: 'cas_grid_img_pizza',
+              type: 'image',
+              content: '',
+              src: 'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=120&auto=format&fit=crop',
+              alt: 'Hot pizza slice',
+              styles: {
+                width: 100,
+                height: 60,
+                borderRadius: 8,
+                align: 'center'
               }
             }
           ],
@@ -1301,9 +1468,9 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
             {
               id: 'cas_grid_h2',
               type: 'heading',
-              content: 'Como Chegar? 📍',
+              content: 'Drinks & Beer 🍻',
               styles: {
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: 'bold',
                 textColor: '#d97706',
                 marginBottom: 4
@@ -1312,10 +1479,24 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
             {
               id: 'cas_grid_t2',
               type: 'text',
-              content: 'A {{location}} fica super bem localizada, com estacionamento gratuito no local e fácil acesso por metrô.',
+              content: 'Chopp artesanal trincando de gelado, refrigerantes liberados e sodas italianas exclusivas para nós.',
               styles: {
                 fontSize: 11,
-                textColor: '#78350f'
+                textColor: '#78350f',
+                marginBottom: 10
+              }
+            },
+            {
+              id: 'cas_grid_img_drinks',
+              type: 'image',
+              content: '',
+              src: 'https://images.unsplash.com/photo-1497534446932-c925b458314e?w=120&auto=format&fit=crop',
+              alt: 'Fresh drinks',
+              styles: {
+                width: 100,
+                height: 60,
+                borderRadius: 8,
+                align: 'center'
               }
             }
           ]
@@ -1325,12 +1506,12 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
         id: 'cas_img_gathering',
         type: 'image',
         content: '',
-        src: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=600&auto=format&fit=crop&q=80',
-        alt: 'Friends laughing and raising glasses',
+        src: 'https://images.unsplash.com/photo-1543807535-eceef0bc6599?w=600&auto=format&fit=crop&q=80',
+        alt: 'Friends laughing around a table',
         styles: {
           width: 536,
-          height: 150,
-          borderRadius: 12,
+          height: 180,
+          borderRadius: 16,
           marginBottom: 20,
           align: 'center'
         }
@@ -1338,10 +1519,10 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
       {
         id: 'cas_text_invite',
         type: 'text',
-        content: 'Vai ser um momento super descontraído para relaxar e recarregar as energias para o fim de semana. Confirme sua presença pelo botão abaixo para reservarmos a mesa:',
+        content: 'Confirme sua presença até quinta-feira de manhã para podermos reservar a mesa grande nos fundos perto da lareira!',
         styles: {
           fontSize: 13,
-          textColor: '#92400e',
+          textColor: '#b45309',
           align: 'center',
           marginBottom: 20
         }
@@ -1349,13 +1530,13 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
       {
         id: 'cas_btn',
         type: 'button',
-        content: 'Tô dentro! Confirmo presença 🍕',
+        content: 'Confirmar Minha Presença! ✔️',
         href: '#',
         styles: {
           backgroundColor: '#d97706',
           textColor: '#ffffff',
-          borderRadius: 9999,
-          fontSize: 15,
+          borderRadius: 12,
+          fontSize: 14,
           fontWeight: 'bold',
           paddingTop: 12,
           paddingBottom: 12,
@@ -1373,11 +1554,11 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
         { id: 'bc_cas3', name: 'Amarelo Suave', value: '#fef3c7' }
       ],
       colorRules: [],
-      signatureName: 'Lucas Oliveira',
-      signatureRole: 'Organizador do Rolê',
-      signatureCompany: 'Turma de Sexta',
-      signaturePhone: '+55 (11) 98888-7766',
-      signatureColor: '#d97706'
+      signatureName: 'Roberto Vasconcelos',
+      signatureRole: 'CFO & Diretor de Operações',
+      signatureCompany: 'Nexus Analytics SA',
+      signaturePhone: '+55 (11) 4004-9900',
+      signatureColor: '#1e3a8a'
     }
   },
 {
@@ -1426,7 +1607,9 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
       {
         id: 'com_text',
         type: 'text',
-        content: 'Prepare-se para conhecer o futuro em seu pulso. O novo **{{productName}}** acaba de ser apresentado e você tem o privilégio de adquiri-lo antes de todo mundo.\n\nE tem mais: como agradecimento por ser nossa cliente vip, use o botão abaixo para garantir sua compra com **{{discountVal}}** e frete grátis apenas nas próximas 24 horas.',
+        content: `Prepare-se para conhecer o futuro em seu pulso. O novo **{{productName}}** acaba de ser apresentado e você tem o privilégio de adquiri-lo antes de todo mundo.
+
+E tem mais: como agradecimento por ser nossa cliente vip, use o botão abaixo para garantir sua compra com **{{discountVal}}** e frete grátis apenas nas próximas 24 horas.`,
         styles: {
           fontSize: 15,
           textColor: '#3b0764',
@@ -1441,13 +1624,14 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
         styles: {
           marginBottom: 20
         },
+        rowsCount: 1,
         colsCount: 2,
         gridCells: {
           '0-0': [
             {
-              id: 'com_feat_h1',
+              id: 'com_grid_h1',
               type: 'heading',
-              content: 'Bateria de 14 Dias ⚡',
+              content: 'Bateria de Longa Duração 🔋',
               styles: {
                 fontSize: 13,
                 fontWeight: 'bold',
@@ -1456,20 +1640,34 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
               }
             },
             {
-              id: 'com_feat_t1',
+              id: 'com_grid_t1',
               type: 'text',
-              content: 'Esqueça os carregadores diários. Desfrute de autonomia total para suas aventuras e rotina.',
+              content: 'Até **14 dias** de autonomia real com uso contínuo de monitoramento inteligente.',
               styles: {
                 fontSize: 11,
-                textColor: '#581c87'
+                textColor: '#581c87',
+                marginBottom: 10
+              }
+            },
+            {
+              id: 'com_grid_img_battery',
+              type: 'image',
+              content: '',
+              src: 'https://images.unsplash.com/photo-1584438784894-089d6a128f3e?w=120&auto=format&fit=crop',
+              alt: 'Battery charging',
+              styles: {
+                width: 120,
+                height: 60,
+                borderRadius: 4,
+                align: 'center'
               }
             }
           ],
           '0-1': [
             {
-              id: 'com_feat_h2',
+              id: 'com_grid_h2',
               type: 'heading',
-              content: 'Sensor Bio-Tracker 🩺',
+              content: "À Prova D'Água 5ATM 🌊",
               styles: {
                 fontSize: 13,
                 fontWeight: 'bold',
@@ -1478,41 +1676,151 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
               }
             },
             {
-              id: 'com_feat_t2',
+              id: 'com_grid_t2',
               type: 'text',
-              content: 'Monitoramento contínuo de frequência cardíaca, oxigênio no sangue (SpO2) e qualidade de sono.',
+              content: 'Resistência extrema para natação livre, chuvas fortes e mergulhos de até 50 metros.',
               styles: {
                 fontSize: 11,
-                textColor: '#581c87'
+                textColor: '#581c87',
+                marginBottom: 10
+              }
+            },
+            {
+              id: 'com_grid_img_water',
+              type: 'image',
+              content: '',
+              src: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=120&auto=format&fit=crop',
+              alt: 'Splashing water',
+              styles: {
+                width: 120,
+                height: 60,
+                borderRadius: 4,
+                align: 'center'
               }
             }
           ]
         }
       },
       {
-        id: 'com_img_lifestyle',
-        type: 'image',
+        id: 'com_divider',
+        type: 'divider',
         content: '',
-        src: 'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?w=600&auto=format&fit=crop&q=80',
-        alt: 'Smart watch sports tracking',
         styles: {
-          width: 536,
-          height: 150,
-          borderRadius: 12,
-          marginBottom: 24,
-          align: 'center'
+          borderColor: '#f3e8ff',
+          borderWidth: 1,
+          marginBottom: 20
+        }
+      },
+      {
+        id: 'com_subheading_editions',
+        type: 'heading',
+        content: 'Escolha a sua Edição Exclusiva:',
+        styles: {
+          fontSize: 16,
+          fontWeight: 'bold',
+          textColor: '#581c87',
+          align: 'center',
+          marginBottom: 15
+        }
+      },
+      {
+        id: 'com_grid_options',
+        type: 'grid',
+        content: '',
+        styles: {
+          marginBottom: 25
+        },
+        rowsCount: 1,
+        colsCount: 2,
+        gridCells: {
+          '0-0': [
+            {
+              id: 'com_opt_img_black',
+              type: 'image',
+              content: '',
+              src: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&auto=format&fit=crop',
+              alt: 'Classic Black Edition',
+              styles: {
+                width: 140,
+                height: 100,
+                borderRadius: 8,
+                align: 'center',
+                marginBottom: 10
+              }
+            },
+            {
+              id: 'com_opt_h_black',
+              type: 'heading',
+              content: 'Preto Clássico Space 🖤',
+              styles: {
+                fontSize: 12,
+                fontWeight: 'bold',
+                textColor: '#1f1e24',
+                align: 'center',
+                marginBottom: 4
+              }
+            },
+            {
+              id: 'com_opt_t_black',
+              type: 'text',
+              content: 'Corpo em titânio escovado com pulseira esportiva ultra leve.',
+              styles: {
+                fontSize: 10,
+                textColor: '#6b7280',
+                align: 'center'
+              }
+            }
+          ],
+          '0-1': [
+            {
+              id: 'com_opt_img_gold',
+              type: 'image',
+              content: '',
+              src: 'https://images.unsplash.com/photo-1542496658-e33a6d0d50f6?w=200&auto=format&fit=crop',
+              alt: 'Luxury Rose Gold Edition',
+              styles: {
+                width: 140,
+                height: 100,
+                borderRadius: 8,
+                align: 'center',
+                marginBottom: 10
+              }
+            },
+            {
+              id: 'com_opt_h_gold',
+              type: 'heading',
+              content: 'Rose Gold Premium 💖',
+              styles: {
+                fontSize: 12,
+                fontWeight: 'bold',
+                textColor: '#1f1e24',
+                align: 'center',
+                marginBottom: 4
+              }
+            },
+            {
+              id: 'com_opt_t_gold',
+              type: 'text',
+              content: 'Acabamento banhado a ouro rosê com pulseira milanesa em malha de aço.',
+              styles: {
+                fontSize: 10,
+                textColor: '#6b7280',
+                align: 'center'
+              }
+            }
+          ]
         }
       },
       {
         id: 'com_btn',
         type: 'button',
-        content: 'Quero meu {{productName}} com Desconto 🌟',
+        content: 'Garantir Meu Aura 3 com Desconto! 🛒',
         href: '#',
         styles: {
           backgroundColor: '#7c3aed',
           textColor: '#ffffff',
           borderRadius: 12,
-          fontSize: 15,
+          fontSize: 14,
           fontWeight: 'bold',
           paddingTop: 14,
           paddingBottom: 14,
@@ -1530,11 +1838,11 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
         { id: 'bc_com3', name: 'Rosa Vibrante', value: '#db2777' }
       ],
       colorRules: [],
-      signatureName: 'Gabriela Vasques',
-      signatureRole: 'Head de Vendas VIP',
-      signatureCompany: 'Aura Store Internacional',
-      signaturePhone: '+55 (11) 92222-1100',
-      signatureColor: '#7c3aed'
+      signatureName: 'Roberto Vasconcelos',
+      signatureRole: 'CFO & Diretor de Operações',
+      signatureCompany: 'Nexus Analytics SA',
+      signaturePhone: '+55 (11) 4004-9900',
+      signatureColor: '#1e3a8a'
     }
   },
 {
@@ -1566,14 +1874,91 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
         }
       },
       {
+        id: 'tec_img_header',
+        type: 'image',
+        content: '',
+        src: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=600&auto=format&fit=crop&q=80',
+        alt: 'Abstract lines of code on black computer screen',
+        styles: {
+          width: 536,
+          height: 140,
+          borderRadius: 8,
+          marginBottom: 20,
+          align: 'center'
+        }
+      },
+      {
         id: 'tec_text',
         type: 'text',
-        content: 'Olá devs,\n\nNossa equipe de engenharia finalizou com sucesso a implantação da versão **{{versionNumber}}** em nossos clusters de produção.\n\nPrincipais otimizações desta build:\n- Redução de 45% na latência do renderizador de templates\n- Suporte nativo a bindings condicionais sem re-render\n- Correção de bugs críticos de persistência em cache regional',
+        content: `Olá devs,
+
+Nossa equipe de engenharia finalizou com sucesso a implantação da versão **{{versionNumber}}** em nossos clusters de produção.
+
+Principais otimizações desta build:
+- Redução de 45% na latência do renderizador de templates
+- Suporte nativo a bindings condicionais sem re-render
+- Correção de bugs críticos de persistência em cache regional`,
         styles: {
           fontSize: 14,
           textColor: '#a1a1aa',
           align: 'left',
           marginBottom: 24
+        }
+      },
+      {
+        id: 'tec_grid_status',
+        type: 'grid',
+        content: '',
+        styles: {
+          marginBottom: 24
+        },
+        rowsCount: 1,
+        colsCount: 2,
+        gridCells: {
+          '0-0': [
+            {
+              id: 'tec_grid_h1',
+              type: 'heading',
+              content: 'Engine V2 Online 🟢',
+              styles: {
+                fontSize: 13,
+                fontWeight: 'bold',
+                textColor: '#22c55e',
+                marginBottom: 4
+              }
+            },
+            {
+              id: 'tec_grid_t1',
+              type: 'text',
+              content: 'A latência de render caiu de 12ms para **3.4ms** nos servidores de borda baseados em Edge Functions.',
+              styles: {
+                fontSize: 11,
+                textColor: '#a1a1aa'
+              }
+            }
+          ],
+          '0-1': [
+            {
+              id: 'tec_grid_h2',
+              type: 'heading',
+              content: 'SSL & Segurança 🔒',
+              styles: {
+                fontSize: 13,
+                fontWeight: 'bold',
+                textColor: '#22c55e',
+                marginBottom: 4
+              }
+            },
+            {
+              id: 'tec_grid_t2',
+              type: 'text',
+              content: 'Introdução do TLS 1.3 nativo e criptografia pós-quântica em todas as transações de e-mail transacional.',
+              styles: {
+                fontSize: 11,
+                textColor: '#a1a1aa'
+              }
+            }
+          ]
         }
       },
       {
@@ -1603,14 +1988,13 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
         { id: 'bc_tec3', name: 'Terminal Black', value: '#09090b' }
       ],
       colorRules: [],
-      signatureName: 'DevOps Automation Pipeline',
-      signatureRole: 'Status Bot Monitor',
-      signatureCompany: 'InboxFlow Tech Infrastructure',
-      signaturePhone: '+55 (11) 127.0.0.1',
-      signatureColor: '#22c55e'
+      signatureName: 'Roberto Vasconcelos',
+      signatureRole: 'CFO & Diretor de Operações',
+      signatureCompany: 'Nexus Analytics SA',
+      signaturePhone: '+55 (11) 4004-9900',
+      signatureColor: '#1e3a8a'
     }
-  },
-{
+  },{
     id: 'romantic_gabrielle',
     name: 'Corações para Gabrielle ❤️',
     globalStyles: {
@@ -3722,6 +4106,304 @@ export const DEFAULT_TEMPLATES: EmailTemplate[] = [
       signatureCompany: 'Master Gourmet Receitas',
       signaturePhone: '+55 (11) 99988-7711',
       signatureColor: '#ea580c'
+    }
+  },
+  {
+    id: 'medico_reuniao',
+    name: 'Visita / Reunião Médica 📅',
+    globalStyles: {
+      backgroundColor: '#f1f5f9',
+      containerColor: '#ffffff',
+      textColor: '#1e293b',
+      fontFamily: 'Inter, sans-serif',
+      borderRadius: 16,
+      padding: 32
+    },
+    variables: [
+      { id: 'medr1', key: 'doctorName', value: 'Dr. Carlos Mendes', description: 'Nome do médico destinatário' },
+      { id: 'medr2', key: 'meetingDate', value: '12 de Julho de 2026', description: 'Data da visita/reunião' },
+      { id: 'medr3', key: 'meetingTime', value: '14:30', description: 'Horário do compromisso' },
+      { id: 'medr4', key: 'meetingLocation', value: 'Consultório 302 (Bloco B) ou meet.google.com/xyz-abc-123', description: 'Local físico ou link da vídeo-reunião' },
+      { id: 'medr5', key: 'repName', value: 'Beatriz Silva', description: 'Nome da representante comercial' },
+      { id: 'medr6', key: 'repEmail', value: 'beatriz.silva@medpharma.com', description: 'Email de contato da representante' },
+      { id: 'medr7', key: 'repPhone', value: '+55 (11) 98765-4321', description: 'Telefone de contato da representante' },
+      { id: 'medr8', key: 'repRole', value: 'Consultora Científica Sênior', description: 'Cargo da representante na empresa' }
+    ],
+    elements: [
+      {
+        id: 'medr_head',
+        type: 'heading',
+        content: 'Confirmação de Reunião Científica 🩺',
+        styles: {
+          fontSize: 22,
+          fontWeight: 'bold',
+          textColor: '#0284c7',
+          align: 'center',
+          marginBottom: 16
+        }
+      },
+      {
+        id: 'medr_intro',
+        type: 'text',
+        content: 'Olá, **{{doctorName}}**,\n\nConfirmamos o agendamento da nossa próxima reunião científica de atualização terapêutica. Seguem abaixo todos os detalhes do compromisso, bem como os contatos do representante técnico responsável por sua região:',
+        styles: {
+          fontSize: 14,
+          textColor: '#334155',
+          align: 'left',
+          marginBottom: 24
+        }
+      },
+      {
+        id: 'medr_grid',
+        type: 'grid',
+        content: '',
+        styles: {
+          backgroundColor: '#f8fafc',
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: '#e2e8f0',
+          paddingTop: 16,
+          paddingBottom: 16,
+          paddingLeft: 16,
+          paddingRight: 16,
+          marginBottom: 24
+        },
+        rowsCount: 1,
+        colsCount: 2,
+        gridCells: {
+          '0-0': [
+            {
+              id: 'medr_g_h1',
+              type: 'heading',
+              content: 'Compromisso 📅',
+              styles: {
+                fontSize: 14,
+                fontWeight: 'bold',
+                textColor: '#0369a1',
+                marginBottom: 12
+              }
+            },
+            {
+              id: 'medr_g_t1',
+              type: 'text',
+              content: '📅 **Data:** {{meetingDate}}\n\n⏰ **Horário:** {{meetingTime}}\n\n📍 **Local/Link:** {{meetingLocation}}',
+              styles: {
+                fontSize: 12,
+                textColor: '#475569',
+                marginBottom: 0
+              }
+            }
+          ],
+          '0-1': [
+            {
+              id: 'medr_g_h2',
+              type: 'heading',
+              content: 'Representante 🧑‍⚕️',
+              styles: {
+                fontSize: 14,
+                fontWeight: 'bold',
+                textColor: '#0369a1',
+                marginBottom: 12
+              }
+            },
+            {
+              id: 'medr_g_t2',
+              type: 'text',
+              content: '👤 **Nome:** {{repName}}\n\n💼 **Cargo:** {{repRole}}\n\n✉️ **E-mail:** {{repEmail}}\n\n📞 **Tel:** {{repPhone}}',
+              styles: {
+                fontSize: 12,
+                textColor: '#475569',
+                marginBottom: 0
+              }
+            }
+          ]
+        }
+      },
+      {
+        id: 'medr_sp',
+        type: 'spacer',
+        content: '',
+        styles: {
+          height: 8
+        }
+      },
+      {
+        id: 'medr_btn',
+        type: 'button',
+        content: 'Confirmar e Adicionar à Agenda 🗓️',
+        href: '#',
+        styles: {
+          backgroundColor: '#0284c7',
+          textColor: '#ffffff',
+          borderRadius: 8,
+          fontSize: 14,
+          fontWeight: 'bold',
+          paddingTop: 12,
+          paddingBottom: 12,
+          paddingLeft: 24,
+          paddingRight: 24,
+          align: 'center',
+          marginBottom: 20
+        }
+      },
+      {
+        id: 'medr_footer',
+        type: 'text',
+        content: 'Caso precise alterar o horário ou local, por favor entre em contato respondendo a este e-mail ou diretamente com o(a) representante **{{repName}}**.',
+        styles: {
+          fontSize: 11,
+          textColor: '#64748b',
+          align: 'center',
+          marginBottom: 0
+        }
+      }
+    ],
+    visualIdentity: {
+      brandColors: [
+        { id: 'bc_medr1', name: 'Azul Médico', value: '#0284c7' },
+        { id: 'bc_medr2', name: 'Cinza Fundo', value: '#f1f5f9' },
+        { id: 'bc_medr3', name: 'Texto Chumbo', value: '#1e293b' }
+      ],
+      colorRules: [],
+      signatureName: 'Beatriz Silva',
+      signatureRole: 'Consultora Científica Sênior',
+      signatureCompany: 'MedPharma Soluções em Saúde',
+      signaturePhone: '+55 (11) 98765-4321',
+      signatureColor: '#0284c7'
+    }
+  },
+  {
+    id: 'medico_pesquisa',
+    name: 'Pesquisa de Satisfação Médica 📝',
+    globalStyles: {
+      backgroundColor: '#f1f5f9',
+      containerColor: '#ffffff',
+      textColor: '#1e293b',
+      fontFamily: 'Inter, sans-serif',
+      borderRadius: 16,
+      padding: 32
+    },
+    variables: [
+      { id: 'medp1', key: 'doctorFullName', value: 'Dr. Ricardo Santos', description: 'Nome completo do médico' },
+      { id: 'medp2', key: 'doctorCRM', value: 'CRM-SP 123456', description: 'Registro CRM do médico' },
+      { id: 'medp3', key: 'doctorSpecialty', value: 'Cardiologia', description: 'Especialidade do médico' },
+      { id: 'medp4', key: 'repName', value: 'Beatriz Silva', description: 'Nome da representante' },
+      { id: 'medp5', key: 'surveyLink', value: 'https://survey.medpharma.com/satisfaction', description: 'Link para responder a pesquisa de satisfação' }
+    ],
+    elements: [
+      {
+        id: 'medp_head',
+        type: 'heading',
+        content: 'Avaliação do Atendimento Científico 📝',
+        styles: {
+          fontSize: 22,
+          fontWeight: 'bold',
+          textColor: '#0f766e',
+          align: 'center',
+          marginBottom: 16
+        }
+      },
+      {
+        id: 'medp_intro',
+        type: 'text',
+        content: 'Prezado(a) **{{doctorFullName}}**,\n\nSua opinião é fundamental para garantir a excelência no fornecimento de informações científicas e amostras regulamentadas. Gostaríamos de solicitar que responda a esta breve pesquisa de satisfação em relação à visita realizada pela representante **{{repName}}**:',
+        styles: {
+          fontSize: 14,
+          textColor: '#334155',
+          align: 'left',
+          marginBottom: 24
+        }
+      },
+      {
+        id: 'medp_container',
+        type: 'container',
+        content: '',
+        styles: {
+          backgroundColor: '#f0fdf4',
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: '#bbf7d0',
+          paddingTop: 16,
+          paddingBottom: 16,
+          paddingLeft: 16,
+          paddingRight: 16,
+          marginBottom: 24
+        },
+        children: [
+          {
+            id: 'medp_c_h1',
+            type: 'heading',
+            content: 'Resumo da Visita 🩺',
+            styles: {
+              fontSize: 14,
+              fontWeight: 'bold',
+              textColor: '#0f766e',
+              marginBottom: 12
+            }
+          },
+          {
+            id: 'medp_c_t1',
+            type: 'text',
+            content: '🩺 **Médico:** {{doctorFullName}}\n\n🆔 **CRM:** {{doctorCRM}} | 🎓 **Especialidade:** {{doctorSpecialty}}\n\n👤 **Representante Responsável:** {{repName}}\n\n⏱️ **Tempo Estimado da Pesquisa:** Menos de 2 minutos',
+            styles: {
+              fontSize: 12,
+              textColor: '#166534',
+              marginBottom: 0
+            }
+          }
+        ]
+      },
+      {
+        id: 'medp_sp',
+        type: 'spacer',
+        content: '',
+        styles: {
+          height: 8
+        }
+      },
+      {
+        id: 'medp_btn',
+        type: 'button',
+        content: 'Realizar Pesquisa de Satisfação 📝',
+        href: '{{surveyLink}}',
+        styles: {
+          backgroundColor: '#0f766e',
+          textColor: '#ffffff',
+          borderRadius: 8,
+          fontSize: 14,
+          fontWeight: 'bold',
+          paddingTop: 12,
+          paddingBottom: 12,
+          paddingLeft: 24,
+          paddingRight: 24,
+          align: 'center',
+          marginBottom: 20
+        }
+      },
+      {
+        id: 'medp_footer',
+        type: 'text',
+        content: 'Agradecemos profundamente pela sua participação e por sua colaboração com o avanço da educação médica continuada.',
+        styles: {
+          fontSize: 11,
+          textColor: '#64748b',
+          align: 'center',
+          marginBottom: 0
+        }
+      }
+    ],
+    visualIdentity: {
+      brandColors: [
+        { id: 'bc_medp1', name: 'Verde Mar', value: '#0f766e' },
+        { id: 'bc_medp2', name: 'Fundo Verde Claro', value: '#f0fdf4' },
+        { id: 'bc_medp3', name: 'Borda Verde', value: '#bbf7d0' }
+      ],
+      colorRules: [],
+      signatureName: 'Beatriz Silva',
+      signatureRole: 'Consultora Científica Sênior',
+      signatureCompany: 'MedPharma Soluções em Saúde',
+      signaturePhone: '+55 (11) 98765-4321',
+      signatureColor: '#0f766e'
     }
   }
 ];
