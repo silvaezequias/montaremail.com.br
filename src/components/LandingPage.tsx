@@ -175,8 +175,8 @@ export default function LandingPage({ onStart }: LandingPageProps) {
         
         {/* Floating Free Badge */}
         <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-[11px] font-extrabold text-blue-400 uppercase tracking-widest mb-6 animate-fade-in">
-          <Sparkles className="h-3.5 w-3.5" />
-          <span>Editor de E-mails Inteligente</span>
+          <Sparkles className="h-3.5 w-3.5 text-blue-400 animate-pulse" />
+          <span>Editor de E-mails com Inteligência Artificial Integrada</span>
         </div>
 
         {/* Catchy Title with requested sentence */}
@@ -189,7 +189,7 @@ export default function LandingPage({ onStart }: LandingPageProps) {
 
         {/* Required bold catchphrase: Clear in the hero that it's FREE FOREVER */}
         <p className="text-lg md:text-xl text-zinc-300 max-w-2xl mb-4 font-medium leading-relaxed">
-          Arraste blocos prontos, configure variáveis em tempo real, customize ícones e exporte o código limpo.
+          Arraste blocos prontos, crie e refine layouts conversando com a nossa IA, configure variáveis em tempo real e exporte o código limpo.
         </p>
         <p className="text-xl md:text-2xl font-extrabold text-emerald-400 tracking-tight mb-10">
           ✨ E o melhor: é de graça para sempre. ✨
@@ -641,6 +641,36 @@ export default function LandingPage({ onStart }: LandingPageProps) {
               <div className="mt-6 flex gap-2">
                 <span className="text-[10px] font-mono font-bold px-2.5 py-1 bg-zinc-900 rounded-md border border-zinc-800 text-purple-300">Customizador de Cor</span>
                 <span className="text-[10px] font-mono font-bold px-2.5 py-1 bg-zinc-900 rounded-md border border-zinc-800 text-purple-300">Hospedado na Cloud</span>
+              </div>
+            </div>
+
+            {/* Block 5: Criador com IA */}
+            <div className="md:col-span-3 group relative rounded-2xl border border-blue-900/40 bg-gradient-to-r from-blue-950/10 to-indigo-950/10 p-8 hover:border-blue-500/30 hover:bg-zinc-900/30 transition-all overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6 min-h-[200px]" id="bento-ai-creator-block">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl group-hover:bg-blue-500/10 transition-colors pointer-events-none" />
+              <div className="space-y-3.5 max-w-2xl text-left">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-500/20 text-[10px] font-extrabold text-blue-300 rounded-full border border-blue-500/30 uppercase tracking-widest">
+                  <Sparkles className="h-3 w-3 animate-pulse text-blue-400" />
+                  Novo Recurso Inteligente
+                </div>
+                <h3 className="text-xl font-black text-white flex items-center gap-2">
+                  Criador de E-mails com Inteligência Artificial Integrada
+                </h3>
+                <p className="text-sm text-zinc-400 leading-relaxed">
+                  Agora você pode criar layouts de e-mail inteiros e estruturas complexas simplesmente conversando com o nosso assistente de IA. Descreva o que você precisa e veja a IA organizar espaçamentos, margens, bento-grids e botões de forma profissional.
+                </p>
+              </div>
+              <div className="shrink-0 flex flex-col gap-2 w-full md:w-auto text-left">
+                <button
+                  onClick={onStart}
+                  className="px-5 py-3 bg-blue-600 hover:bg-blue-550 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-blue-900/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  Experimentar Criador IA
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+                <div className="flex gap-1.5 justify-start md:justify-center">
+                  <span className="text-[9px] font-mono font-bold px-2 py-0.5 bg-zinc-900/80 rounded border border-zinc-800 text-blue-400">100% JSON Compatível</span>
+                  <span className="text-[9px] font-mono font-bold px-2 py-0.5 bg-zinc-900/80 rounded border border-zinc-800 text-indigo-400">Edição com Chat</span>
+                </div>
               </div>
             </div>
 

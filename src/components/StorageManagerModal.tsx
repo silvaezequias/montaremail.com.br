@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { EmailTemplate } from '../types';
-import { X, Trash2, HardDrive, AlertTriangle, Check, Save, FileText, Calendar, Layers } from 'lucide-react';
+import { X, Trash2, HardDrive, AlertTriangle, Check, Save, FileText, Calendar, Layers, Sparkles, Code } from 'lucide-react';
 
 interface StorageManagerModalProps {
   isOpen: boolean;
@@ -12,6 +12,8 @@ interface StorageManagerModalProps {
   storageUsageBytes: number;
   storageLimitBytes: number;
   isSavingMode?: boolean; // If true, opens a prompt to save current template first
+  onClearAiMessages?: () => void;
+  onClearReusableComponents?: () => void;
 }
 
 export default function StorageManagerModal({
@@ -24,6 +26,8 @@ export default function StorageManagerModal({
   storageUsageBytes,
   storageLimitBytes,
   isSavingMode = false,
+  onClearAiMessages,
+  onClearReusableComponents,
 }: StorageManagerModalProps) {
   const [templateName, setTemplateName] = useState(
     currentTemplate.id !== 'scratch' && !currentTemplate.id.startsWith('welcome') && !currentTemplate.id.startsWith('promo')
@@ -46,6 +50,35 @@ export default function StorageManagerModal({
     const size = new Blob([JSON.stringify(t)]).size;
     return (size / 1024).toFixed(1);
   };
+
+  // Helper to calculate specific localStorage key size
+  const getLocalStorageKeySize = (key: string): number => {
+    const val = localStorage.getItem(key);
+    if (!val) return 0;
+    return new Blob([val]).size;
+  };
+
+  // Compute storage categories
+  const projectsSize = getLocalStorageKeySize('react-email-builder-projects');
+  
+  // Sum up all AI chat logs
+  let aiChatsSize = getLocalStorageKeySize('react-email-builder-ai-messages');
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('react-email-builder-ai-messages-')) {
+      aiChatsSize += getLocalStorageKeySize(key);
+    }
+  }
+
+  const savedTemplatesSize = getLocalStorageKeySize('react-email-builder-saved-templates');
+  const activeTemplateSize = getLocalStorageKeySize('react-email-builder-template');
+  const reusableComponentsSize = getLocalStorageKeySize('react-email-builder-reusable-components');
+
+  const projectsSizeKB = (projectsSize / 1024).toFixed(1);
+  const aiChatsSizeKB = (aiChatsSize / 1024).toFixed(1);
+  const savedTemplatesSizeKB = (savedTemplatesSize / 1024).toFixed(1);
+  const activeTemplateSizeKB = (activeTemplateSize / 1024).toFixed(1);
+  const reusableComponentsSizeKB = (reusableComponentsSize / 1024).toFixed(1);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -202,6 +235,111 @@ export default function StorageManagerModal({
               </form>
             </div>
           )}
+
+          {/* Detailed Storage Breakdown */}
+          <div className="space-y-3 pt-1">
+            <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+              <HardDrive className="h-3.5 w-3.5 text-zinc-500" />
+              Detalhamento por Categoria (localStorage)
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Category 1: Projects */}
+              <div className="p-3.5 bg-zinc-950 border border-zinc-850 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="p-1.5 bg-indigo-500/10 text-indigo-400 rounded-lg">
+                    <Layers className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-zinc-300 truncate">Projetos & Modelos</p>
+                    <p className="text-[10px] text-zinc-500">Templates estruturados e identidades</p>
+                  </div>
+                </div>
+                <span className="font-mono text-xs text-indigo-400 font-bold shrink-0 ml-2">
+                  {projectsSizeKB} KB
+                </span>
+              </div>
+
+              {/* Category 2: AI Chat */}
+              <div className="p-3.5 bg-zinc-950 border border-zinc-850 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="p-1.5 bg-blue-500/10 text-blue-400 rounded-lg">
+                    <Sparkles className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-zinc-300 truncate">Histórico do Chat da IA</p>
+                    <p className="text-[10px] text-zinc-500">Contexto e logs das conversas</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 ml-2">
+                  <span className="font-mono text-xs text-blue-400 font-bold">
+                    {aiChatsSizeKB} KB
+                  </span>
+                  {aiChatsSize > 0 && onClearAiMessages && (
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Deseja realmente limpar todo o histórico de conversas da IA para economizar espaço?')) {
+                          onClearAiMessages();
+                        }
+                      }}
+                      className="p-1 hover:bg-red-500/10 text-zinc-500 hover:text-red-400 rounded transition-colors cursor-pointer"
+                      title="Limpar Histórico da IA"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Category 3: Saved Avulsos */}
+              <div className="p-3.5 bg-zinc-950 border border-zinc-850 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="p-1.5 bg-amber-500/10 text-amber-400 rounded-lg">
+                    <FileText className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-zinc-300 truncate">Modelos Salvos Avulsos</p>
+                    <p className="text-[10px] text-zinc-500">Rascunhos gerais salvos no navegador</p>
+                  </div>
+                </div>
+                <span className="font-mono text-xs text-amber-400 font-bold shrink-0 ml-2">
+                  {savedTemplatesSizeKB} KB
+                </span>
+              </div>
+
+              {/* Category 4: Reusable Components */}
+              <div className="p-3.5 bg-zinc-950 border border-zinc-850 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="p-1.5 bg-teal-500/10 text-teal-400 rounded-lg">
+                    <Code className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-zinc-300 truncate">Blocos Reutilizáveis</p>
+                    <p className="text-[10px] text-zinc-500">Componentes personalizados salvos</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 ml-2">
+                  <span className="font-mono text-xs text-teal-400 font-bold">
+                    {reusableComponentsSizeKB} KB
+                  </span>
+                  {reusableComponentsSize > 0 && onClearReusableComponents && (
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Deseja realmente excluir todos os blocos reutilizáveis salvos?')) {
+                          onClearReusableComponents();
+                        }
+                      }}
+                      className="p-1 hover:bg-red-500/10 text-zinc-500 hover:text-red-400 rounded transition-colors cursor-pointer"
+                      title="Excluir Blocos"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-zinc-900 my-4" />
 
           {/* Flow 2: Saved Templates List */}
           <div className="space-y-3">

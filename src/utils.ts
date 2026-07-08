@@ -4110,7 +4110,7 @@ Principais otimizações desta build:
   },
   {
     id: 'medico_reuniao',
-    name: 'Visita / Reunião Médica 📅',
+    name: 'Reunião',
     globalStyles: {
       backgroundColor: '#f1f5f9',
       containerColor: '#ffffff',
@@ -4131,9 +4131,22 @@ Principais otimizações desta build:
     ],
     elements: [
       {
+        id: 'medr_top_icon',
+        type: 'image',
+        content: '',
+        src: 'https://img.icons8.com/ios-filled/96/0284c7/stethoscope.png',
+        alt: 'Estetoscópio',
+        styles: {
+          width: 48,
+          height: 48,
+          align: 'center',
+          marginBottom: 16
+        }
+      },
+      {
         id: 'medr_head',
         type: 'heading',
-        content: 'Confirmação de Reunião Científica 🩺',
+        content: 'Confirmação de Reunião Científica',
         styles: {
           fontSize: 22,
           fontWeight: 'bold',
@@ -4173,9 +4186,22 @@ Principais otimizações desta build:
         gridCells: {
           '0-0': [
             {
+              id: 'medr_g_icon1',
+              type: 'image',
+              content: '',
+              src: 'https://img.icons8.com/ios-filled/48/0284c7/calendar.png',
+              alt: 'Calendário',
+              styles: {
+                width: 32,
+                height: 32,
+                align: 'left',
+                marginBottom: 8
+              }
+            },
+            {
               id: 'medr_g_h1',
               type: 'heading',
-              content: 'Compromisso 📅',
+              content: 'Compromisso',
               styles: {
                 fontSize: 14,
                 fontWeight: 'bold',
@@ -4186,7 +4212,7 @@ Principais otimizações desta build:
             {
               id: 'medr_g_t1',
               type: 'text',
-              content: '📅 **Data:** {{meetingDate}}\n\n⏰ **Horário:** {{meetingTime}}\n\n📍 **Local/Link:** {{meetingLocation}}',
+              content: '**Data:** {{meetingDate}}\n\n**Horário:** {{meetingTime}}\n\n**Local/Link:** {{meetingLocation}}',
               styles: {
                 fontSize: 12,
                 textColor: '#475569',
@@ -4196,9 +4222,22 @@ Principais otimizações desta build:
           ],
           '0-1': [
             {
+              id: 'medr_g_icon2',
+              type: 'image',
+              content: '',
+              src: 'https://img.icons8.com/ios-filled/48/0284c7/user.png',
+              alt: 'Representante',
+              styles: {
+                width: 32,
+                height: 32,
+                align: 'left',
+                marginBottom: 8
+              }
+            },
+            {
               id: 'medr_g_h2',
               type: 'heading',
-              content: 'Representante 🧑‍⚕️',
+              content: 'Representante',
               styles: {
                 fontSize: 14,
                 fontWeight: 'bold',
@@ -4209,7 +4248,7 @@ Principais otimizações desta build:
             {
               id: 'medr_g_t2',
               type: 'text',
-              content: '👤 **Nome:** {{repName}}\n\n💼 **Cargo:** {{repRole}}\n\n✉️ **E-mail:** {{repEmail}}\n\n📞 **Tel:** {{repPhone}}',
+              content: '**Nome:** {{repName}}\n\n**Cargo:** {{repRole}}\n\n**E-mail:** {{repEmail}}\n\n**Tel:** {{repPhone}}',
               styles: {
                 fontSize: 12,
                 textColor: '#475569',
@@ -4230,7 +4269,7 @@ Principais otimizações desta build:
       {
         id: 'medr_btn',
         type: 'button',
-        content: 'Confirmar e Adicionar à Agenda 🗓️',
+        content: 'Confirmar e Adicionar à Agenda',
         href: '#',
         styles: {
           backgroundColor: '#0284c7',
@@ -4274,7 +4313,7 @@ Principais otimizações desta build:
   },
   {
     id: 'medico_pesquisa',
-    name: 'Pesquisa de Satisfação Médica 📝',
+    name: 'Pesquisa',
     globalStyles: {
       backgroundColor: '#f1f5f9',
       containerColor: '#ffffff',
@@ -4292,9 +4331,22 @@ Principais otimizações desta build:
     ],
     elements: [
       {
+        id: 'medp_top_icon',
+        type: 'image',
+        content: '',
+        src: 'https://img.icons8.com/ios-filled/96/0f766e/clipboard.png',
+        alt: 'Pesquisa',
+        styles: {
+          width: 48,
+          height: 48,
+          align: 'center',
+          marginBottom: 16
+        }
+      },
+      {
         id: 'medp_head',
         type: 'heading',
-        content: 'Avaliação do Atendimento Científico 📝',
+        content: 'Avaliação do Atendimento Científico',
         styles: {
           fontSize: 22,
           fontWeight: 'bold',
@@ -4306,7 +4358,7 @@ Principais otimizações desta build:
       {
         id: 'medp_intro',
         type: 'text',
-        content: 'Prezado(a) **{{doctorFullName}}**,\n\nSua opinião é fundamental para garantir a excelência no fornecimento de informações científicas e amostras regulamentadas. Gostaríamos de solicitar que responda a esta breve pesquisa de satisfação em relação à visita realizada pela representante **{{repName}}**:',
+        content: 'Prezado(a) **{{doctorFullName}}**,\n\nSua opinião é fundamental para garantir a excellence no fornecimento de informações científicas e amostras regulamentadas. Gostaríamos de solicitar que responda a esta breve pesquisa de satisfação em relação à visita realizada pela representante **{{repName}}**:',
         styles: {
           fontSize: 14,
           textColor: '#334155',
@@ -4331,9 +4383,22 @@ Principais otimizações desta build:
         },
         children: [
           {
+            id: 'medp_c_icon1',
+            type: 'image',
+            content: '',
+            src: 'https://img.icons8.com/ios-filled/48/0f766e/stethoscope.png',
+            alt: 'Resumo',
+            styles: {
+              width: 32,
+              height: 32,
+              align: 'left',
+              marginBottom: 8
+            }
+          },
+          {
             id: 'medp_c_h1',
             type: 'heading',
-            content: 'Resumo da Visita 🩺',
+            content: 'Resumo da Visita',
             styles: {
               fontSize: 14,
               fontWeight: 'bold',
@@ -4344,7 +4409,7 @@ Principais otimizações desta build:
           {
             id: 'medp_c_t1',
             type: 'text',
-            content: '🩺 **Médico:** {{doctorFullName}}\n\n🆔 **CRM:** {{doctorCRM}} | 🎓 **Especialidade:** {{doctorSpecialty}}\n\n👤 **Representante Responsável:** {{repName}}\n\n⏱️ **Tempo Estimado da Pesquisa:** Menos de 2 minutos',
+            content: '**Médico:** {{doctorFullName}}\n\n**CRM:** {{doctorCRM}} | **Especialidade:** {{doctorSpecialty}}\n\n**Representante Responsável:** {{repName}}\n\n**Tempo Estimado da Pesquisa:** Menos de 2 minutos',
             styles: {
               fontSize: 12,
               textColor: '#166534',
@@ -4364,7 +4429,7 @@ Principais otimizações desta build:
       {
         id: 'medp_btn',
         type: 'button',
-        content: 'Realizar Pesquisa de Satisfação 📝',
+        content: 'Realizar Pesquisa de Satisfação',
         href: '{{surveyLink}}',
         styles: {
           backgroundColor: '#0f766e',

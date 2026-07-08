@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { EmailTemplate } from '../types';
 import { compileTemplateToEmailHtml, generateReactEmailCode } from '../utils';
-import { X, Copy, Check, Download, Code, BookOpen, FileText, Sparkles, Eye, Info, Mail, Clipboard, Palette } from 'lucide-react';
+import { X, Copy, Check, Download, Code, BookOpen, FileText, Sparkles, Eye, Info, Mail, Clipboard, Palette, Printer } from 'lucide-react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface ExportModalProps {
   template: EmailTemplate;
@@ -55,10 +57,145 @@ function highlightTSX(code: string): string {
 }
 
 export default function ExportModal({ template, onClose }: ExportModalProps) {
-  const [activeTab, setActiveTab] = useState<'richtext' | 'html' | 'tsx'>('richtext');
+  const [activeTab, setActiveTab] = useState<'richtext' | 'html' | 'tsx' | 'pdf'>('richtext');
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedRichText, setCopiedRichText] = useState(false);
   const [copiedTsx, setCopiedTsx] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState<string>('');
+
+  const handlePrintIframe = () => {
+    const iframe = document.getElementById('print-preview-iframe') as HTMLIFrameElement;
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    } else {
+      const tempIframe = document.createElement('iframe');
+      tempIframe.style.position = 'absolute';
+      tempIframe.style.width = '0';
+      tempIframe.style.height = '0';
+      tempIframe.style.border = 'none';
+      document.body.appendChild(tempIframe);
+      
+      if (tempIframe.contentWindow) {
+        tempIframe.contentDocument?.open();
+        tempIframe.contentDocument?.write(htmlCode);
+        tempIframe.contentDocument?.close();
+        
+        setTimeout(() => {
+          tempIframe.contentWindow?.focus();
+          tempIframe.contentWindow?.print();
+          document.body.removeChild(tempIframe);
+        }, 500);
+      }
+    }
+  };
+
+  const handleDownloadPdfContinuous = async () => {
+    setIsGeneratingPdf(true);
+    setPdfProgress('Renderizando e-mail...');
+    try {
+      const container = document.createElement('div');
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      container.style.top = '0';
+      container.style.width = '640px';
+      container.style.backgroundColor = '#ffffff';
+      container.innerHTML = htmlCode;
+      document.body.appendChild(container);
+
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      setPdfProgress('Capturando imagem de alta resolução...');
+
+      const canvas = await html2canvas(container, {
+        useCORS: true,
+        scale: 2,
+        logging: false,
+        allowTaint: true,
+        backgroundColor: '#ffffff'
+      });
+
+      document.body.removeChild(container);
+      setPdfProgress('Compilando PDF...');
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'px',
+        format: [canvas.width / 2, canvas.height / 2]
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`${template.name || 'EmailTemplate'}.pdf`);
+    } catch (error) {
+      console.error('Error generating continuous PDF:', error);
+      alert('Erro ao gerar o PDF contínuo. Tente a opção "Imprimir / Salvar Vetorial" para maior compatibilidade.');
+    } finally {
+      setIsGeneratingPdf(false);
+      setPdfProgress('');
+    }
+  };
+
+  const handleDownloadPdfA4 = async () => {
+    setIsGeneratingPdf(true);
+    setPdfProgress('Renderizando e-mail...');
+    try {
+      const container = document.createElement('div');
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      container.style.top = '0';
+      container.style.width = '640px';
+      container.style.backgroundColor = '#ffffff';
+      container.innerHTML = htmlCode;
+      document.body.appendChild(container);
+
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      setPdfProgress('Fatiando páginas para tamanho A4...');
+
+      const canvas = await html2canvas(container, {
+        useCORS: true,
+        scale: 2,
+        logging: false,
+        allowTaint: true,
+        backgroundColor: '#ffffff'
+      });
+
+      document.body.removeChild(container);
+      setPdfProgress('Gerando arquivo final...');
+
+      const imgWidth = 595.28;
+      const pageHeight = 841.89;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+
+      const doc = new jsPDF('p', 'pt', 'a4');
+      let position = 0;
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+      doc.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        doc.addPage();
+        doc.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      doc.save(`${template.name || 'EmailTemplate'}_A4.pdf`);
+    } catch (error) {
+      console.error('Error generating A4 PDF:', error);
+      alert('Erro ao gerar o PDF fatiado. Tente a opção "Imprimir / Salvar Vetorial" para maior compatibilidade.');
+    } finally {
+      setIsGeneratingPdf(false);
+      setPdfProgress('');
+    }
+  };
 
   // React Email Custom options
   const [reactEmailFormat, setReactEmailFormat] = useState<'tsx' | 'jsx'>('tsx');
@@ -215,6 +352,17 @@ export default function ExportModal({ template, onClose }: ExportModalProps) {
           >
             <Code className="h-3.5 w-3.5" />
             React Email (.{reactEmailFormat})
+          </button>
+          <button
+            onClick={() => setActiveTab('pdf')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
+              activeTab === 'pdf'
+                ? 'bg-red-600 text-white shadow-lg shadow-red-600/15'
+                : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850'
+            }`}
+          >
+            <Printer className="h-3.5 w-3.5" />
+            Exportar PDF / Imprimir
           </button>
         </div>
 
@@ -379,7 +527,7 @@ export default function ExportModal({ template, onClose }: ExportModalProps) {
                   Perfeito para colar no Mailchimp, RD Station, ActiveCampaign ou mandar via SMTP corporativo.
                 </p>
               </div>
-            ) : (
+            ) : activeTab === 'tsx' ? (
               <div className="bg-indigo-950/10 rounded-xl p-4 border border-indigo-900/20 space-y-3">
                 <h4 className="font-bold text-indigo-400 flex items-center gap-1.5 text-xs uppercase tracking-wider">
                   <Code className="h-4 w-4" />
@@ -391,6 +539,21 @@ export default function ExportModal({ template, onClose }: ExportModalProps) {
                 <p className="text-[11px] text-zinc-500 leading-relaxed">
                   Suporta estilização com Tailwind CSS embutido.
                 </p>
+              </div>
+            ) : (
+              <div className="bg-red-950/10 rounded-xl p-4 border border-red-900/20 space-y-3">
+                <h4 className="font-bold text-red-400 flex items-center gap-1.5 text-xs uppercase tracking-wider">
+                  <Printer className="h-4 w-4" />
+                  Opções de Exportação PDF
+                </h4>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Gere arquivos PDF do seu template de e-mail de três formas diferentes:
+                </p>
+                <ul className="text-xs text-zinc-400 space-y-2 list-disc list-inside leading-relaxed">
+                  <li><strong>Impressão / Salvar Vetorial (Recomendado):</strong> Abre o menu de impressão nativo do navegador. Ao escolher "Salvar como PDF", você terá um PDF com textos selecionáveis e hiperlinks clicáveis.</li>
+                  <li><strong>Baixar PDF Contínuo:</strong> Cria um arquivo PDF contínuo de página única, sem cortes incômodos no meio de textos ou imagens. Excelente para leitura móvel.</li>
+                  <li><strong>Baixar PDF A4 Fatiado:</strong> Renders the template and cuts it into sequential A4 sheets automatically.</li>
+                </ul>
               </div>
             )}
 
@@ -531,7 +694,7 @@ export default function ExportModal({ template, onClose }: ExportModalProps) {
 
               </div>
             </>
-          ) : (
+          ) : activeTab === 'tsx' ? (
             /* TSX/JSX Code View Layout (lg:col-span-8) - NO PREVIEW */
             <div className="lg:col-span-8 flex flex-col h-full min-h-[460px] bg-black rounded-2xl border border-zinc-800 relative shadow-inner overflow-hidden">
               
@@ -576,6 +739,71 @@ export default function ExportModal({ template, onClose }: ExportModalProps) {
                   <code dangerouslySetInnerHTML={{ __html: highlightTSX(tsxCode) }} />
                 </pre>
               </div>
+            </div>
+          ) : (
+            /* PDF Export and Print Layout (lg:col-span-8) */
+            <div className="lg:col-span-8 flex flex-col h-full min-h-[460px] bg-[#121212] rounded-2xl border border-zinc-800 overflow-hidden relative">
+              
+              {/* PDF Toolbar */}
+              <div className="flex flex-col xl:flex-row xl:items-center justify-between bg-zinc-900/85 px-4 py-3 border-b border-zinc-850 gap-3">
+                <div className="flex items-center gap-2 text-zinc-300">
+                  <Printer className="h-4 w-4 text-red-500" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Painel de Exportação PDF</span>
+                </div>
+                
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={handlePrintIframe}
+                    disabled={isGeneratingPdf}
+                    className="flex items-center gap-1.5 bg-red-600 hover:bg-red-500 disabled:bg-zinc-850 disabled:text-zinc-650 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-lg shadow-red-600/15 cursor-pointer transition-all shrink-0"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    Salvar Vetorial (Recomendado)
+                  </button>
+                  <button
+                    onClick={handleDownloadPdfContinuous}
+                    disabled={isGeneratingPdf}
+                    className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-850 disabled:text-zinc-650 text-zinc-200 px-3.5 py-2 rounded-xl text-xs font-semibold border border-zinc-700 cursor-pointer transition-all"
+                  >
+                    <Download className="h-3.5 w-3.5 text-zinc-400" />
+                    Baixar PDF Contínuo
+                  </button>
+                  <button
+                    onClick={handleDownloadPdfA4}
+                    disabled={isGeneratingPdf}
+                    className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-850 disabled:text-zinc-650 text-zinc-200 px-3.5 py-2 rounded-xl text-xs font-semibold border border-zinc-700 cursor-pointer transition-all"
+                  >
+                    <Download className="h-3.5 w-3.5 text-zinc-400" />
+                    Baixar PDF A4 Fatiado
+                  </button>
+                </div>
+              </div>
+
+              {/* Preview and Iframe Area */}
+              <div className="flex-1 bg-zinc-950 p-4 flex flex-col relative">
+                {isGeneratingPdf && (
+                  <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center space-y-4">
+                    <div className="w-10 h-10 border-4 border-red-500 border-t-transparent rounded-full animate-spin" />
+                    <p className="text-xs font-bold text-zinc-300 animate-pulse">{pdfProgress || 'Gerando PDF...'}</p>
+                    <p className="text-[10px] text-zinc-500">Por favor, aguarde a renderização dos componentes.</p>
+                  </div>
+                )}
+
+                <div className="flex-1 bg-white rounded-xl overflow-hidden border border-zinc-800 shadow-inner relative flex flex-col">
+                  <iframe
+                    srcDoc={htmlCode}
+                    title="Real PDF Compiled Email Preview"
+                    id="print-preview-iframe"
+                    className="w-full h-full border-none bg-white flex-1"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+                
+                <div className="mt-3 text-center text-[10px] text-zinc-500 italic leading-snug">
+                  💡 A opção "Salvar Vetorial" usa o mecanismo de impressão do seu navegador, mantendo textos pesquisáveis e links clicáveis. Escolha "Salvar como PDF" nas opções de impressora.
+                </div>
+              </div>
+
             </div>
           )}
 

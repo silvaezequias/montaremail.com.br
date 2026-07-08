@@ -12,6 +12,7 @@ import ComponentsWorkspace from './components/ComponentsWorkspace';
 import VisualIdentityWorkspace from './components/VisualIdentityWorkspace';
 import LandingPage from './components/LandingPage';
 import ProjectDashboard from './components/ProjectDashboard';
+import AiWorkspace, { ChatMessage } from './components/AiWorkspace';
 import {
   Code,
   Variable,
@@ -61,7 +62,7 @@ export default function App() {
     setCurrentPath(path);
   };
 
-  const [activeTab, setActiveTab] = useState<'editor' | 'components' | 'identity'>('editor');
+  const [activeTab, setActiveTab] = useState<'editor' | 'components' | 'identity' | 'ai'>('editor');
 
   // Helper to create blank email templates
   const createBlankTemplate = (name: string, customId?: string): EmailTemplate => {
@@ -236,10 +237,75 @@ export default function App() {
     return projects[0]?.reusableComponents || [];
   });
 
+  // Shared persistent state for AI Chat Workspace to ensure chat history is never lost between tab switches
+  const [aiMessages, setAiMessages] = useState<ChatMessage[]>(() => {
+    const savedActiveTplId = localStorage.getItem('react-email-builder-active-template-id');
+    const saved = savedActiveTplId ? localStorage.getItem(`react-email-builder-ai-messages-tpl-${savedActiveTplId}`) : null;
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Error loading aiMessages", e);
+      }
+    }
+    return [
+      {
+        role: 'model',
+        content: 'Olá! Sou seu assistente de design de e-mails com IA. Eu entendo perfeitamente o nosso formato de templates JSON, incluindo todas as variações de espaçamentos (paddings e margins), bordas, raios de canto personalizados (border radius), contêineres aninhados para criar cartões destacados (bento-box) e grids de múltiplas colunas para layouts responsivos.\n\nEscreva abaixo o tipo de e-mail que deseja criar ou selecione uma de nossas sugestões rápidas para começarmos!'
+      }
+    ];
+  });
+
   // Persist projects state
   useEffect(() => {
     localStorage.setItem('react-email-builder-projects', JSON.stringify(projects));
   }, [projects]);
+
+  // Persist activeProjectId
+  useEffect(() => {
+    if (activeProjectId) {
+      localStorage.setItem('react-email-builder-active-project-id', activeProjectId);
+    }
+  }, [activeProjectId]);
+
+  // Persist activeTemplateId
+  useEffect(() => {
+    if (activeTemplateId) {
+      localStorage.setItem('react-email-builder-active-template-id', activeTemplateId);
+    } else {
+      localStorage.removeItem('react-email-builder-active-template-id');
+    }
+  }, [activeTemplateId]);
+
+  // Persist aiMessages state per template
+  useEffect(() => {
+    if (activeTemplateId) {
+      localStorage.setItem(`react-email-builder-ai-messages-tpl-${activeTemplateId}`, JSON.stringify(aiMessages));
+    }
+  }, [aiMessages, activeTemplateId]);
+
+  // Load template-specific chat history when active template changes
+  useEffect(() => {
+    if (activeTemplateId) {
+      const saved = localStorage.getItem(`react-email-builder-ai-messages-tpl-${activeTemplateId}`);
+      if (saved) {
+        try {
+          setAiMessages(JSON.parse(saved));
+          return;
+        } catch (e) {
+          console.error("Error loading template-specific aiMessages", e);
+        }
+      }
+      
+      // Fallback: start fresh for this template
+      setAiMessages([
+        {
+          role: 'model',
+          content: 'Olá! Sou seu assistente de design de e-mails com IA. Eu entendo perfeitamente o nosso formato de templates JSON, incluindo todas as variações de espaçamentos (paddings e margins), bordas, raios de canto personalizados (border radius), contêineres aninhados para criar cartões destacados (bento-box) e grids de múltiplas colunas para layouts responsivos.\n\nEscreva abaixo o tipo de e-mail que deseja criar ou selecione uma de nossas sugestões rápidas para começarmos!'
+        }
+      ]);
+    }
+  }, [activeTemplateId]);
 
   // Persist activeProjectId
   useEffect(() => {
@@ -258,6 +324,11 @@ export default function App() {
           setTemplate(tpl);
           setVisualIdentity(proj.visualIdentity);
           setReusableComponents(proj.reusableComponents);
+          
+          // Auto-reset tab if we switched to a non-AI template
+          if (!tpl.id.startsWith('ai') && activeTab === 'ai') {
+            setActiveTab('editor');
+          }
         }
       }
     }
@@ -386,6 +457,20 @@ export default function App() {
 
   const getStorageUsageBytes = (templates: EmailTemplate[]): number => {
     return new Blob([JSON.stringify(templates)]).size;
+  };
+
+  const getTotalStorageUsageBytes = (): number => {
+    let total = 0;
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('react-email-builder-')) {
+        const val = localStorage.getItem(key);
+        if (val) {
+          total += new Blob([val]).size;
+        }
+      }
+    }
+    return total;
   };
 
   const handleSaveCurrentTemplate = (name: string): boolean => {
@@ -642,9 +727,66 @@ export default function App() {
         return p;
       }));
       setActiveTemplateId(newTplId);
+      setActiveTab('editor');
+    } else if (templateId === 'ai-blank') {
+      const newTplId = `ai_blank_${Date.now()}`;
+      const newTpl = createBlankTemplate('Modelo em Branco com IA', newTplId);
+      setProjects(prev => prev.map(p => {
+        if (p.id === projectId) {
+          return {
+            ...p,
+            templates: [...p.templates, newTpl],
+            updatedAt: Date.now()
+          };
+        }
+        return p;
+      }));
+      setActiveTemplateId(newTplId);
+      setActiveTab('ai');
     } else {
       setActiveTemplateId(templateId);
+      if (templateId.startsWith('ai')) {
+        setActiveTab('ai');
+      } else {
+        setActiveTab('editor');
+      }
     }
+  };
+
+  const handleLoadAiTemplate = (aiTemplate: EmailTemplate) => {
+    const projId = activeProjectId || projects[0]?.id;
+    if (!projId) {
+      showToast('⚠️ Erro: Nenhum projeto ativo para salvar o modelo.');
+      return;
+    }
+
+    const newTplId = `ai_${Date.now()}`;
+    const newTpl: EmailTemplate = {
+      ...aiTemplate,
+      id: newTplId,
+      name: aiTemplate.name || 'Modelo Gerado por IA'
+    };
+
+    // Salva o modelo nos templates do projeto
+    setProjects(prev => prev.map(p => {
+      if (p.id === projId) {
+        return {
+          ...p,
+          templates: [...p.templates, newTpl],
+          updatedAt: Date.now()
+        };
+      }
+      return p;
+    }));
+
+    setActiveProjectId(projId);
+    setActiveTemplateId(newTplId);
+    setTemplate(newTpl);
+    setSelectedElementId(null);
+    setUndoStack([]);
+    setRedoStack([]);
+    setActiveTab('editor');
+    showToast(`✨ Modelo "${newTpl.name}" carregado com sucesso no editor!`);
   };
 
   const handleOpenSaveModal = () => {
@@ -1783,6 +1925,10 @@ export default function App() {
         onDeleteTemplate={handleDeleteTemplate}
         onDuplicateTemplate={handleDuplicateTemplate}
         onSelectTemplate={handleSelectTemplate}
+        onLoadAiTemplate={handleLoadAiTemplate}
+        visualIdentity={visualIdentity}
+        aiMessages={aiMessages}
+        onAiMessagesChange={setAiMessages}
       />
     );
   }
@@ -1838,7 +1984,7 @@ export default function App() {
             }`}
           >
             <Mail className="h-3.5 w-3.5" />
-            Editor de Modelos
+            Editor
           </button>
           <button
             onClick={() => setActiveTab('components')}
@@ -1849,7 +1995,7 @@ export default function App() {
             }`}
           >
             <Layout className="h-3.5 w-3.5" />
-            Área de Componentes
+            Componentes
           </button>
           <button
             onClick={() => setActiveTab('identity')}
@@ -1860,8 +2006,21 @@ export default function App() {
             }`}
           >
             <Palette className="h-3.5 w-3.5" />
-            Identidade Visual
+            Identidade
           </button>
+          {activeTemplateId && (
+            <button
+              onClick={() => setActiveTab('ai')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                activeTab === 'ai'
+                  ? 'bg-blue-600 text-white shadow font-black animate-pulse'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <Sparkles className="h-3.5 w-3.5 text-blue-400" />
+              IA
+            </button>
+          )}
         </div>
  
          {/* Action controls in header */}
@@ -1938,8 +2097,7 @@ export default function App() {
  
       {/* Main Workspace Frame */}
       <div className="flex-1 flex overflow-hidden relative bg-[#0a0a0a]">
-        {activeTab === 'editor' && (
-          <>
+        <div className={`flex-1 flex overflow-hidden relative ${activeTab === 'editor' ? '' : 'hidden'}`}>
             {/* Left column: Sidebar list + Global Styles */}
             <div className={`shrink-0 h-full overflow-hidden border-r border-zinc-800 bg-[#0f0f0f] transition-all duration-300 relative ${
               isSidebarOpen ? 'w-80 opacity-100' : 'w-0 opacity-0 border-r-0'
@@ -2159,10 +2317,9 @@ export default function App() {
                 </div>
               )}
             </div>
-          </>
-        )}
- 
-        {activeTab === 'components' && (
+          </div>
+
+        <div className={`flex-1 flex overflow-hidden relative ${activeTab === 'components' ? '' : 'hidden'}`}>
           <ComponentsWorkspace
             reusableComponents={reusableComponents}
             onUpdateComponent={handleUpdateComponent}
@@ -2171,15 +2328,29 @@ export default function App() {
             onImportComponent={handleImportComponent}
             variables={template.variables}
           />
-        )}
- 
-        {activeTab === 'identity' && (
+        </div>
+
+        <div className={`flex-1 flex overflow-hidden relative ${activeTab === 'identity' ? '' : 'hidden'}`}>
           <VisualIdentityWorkspace
             visualIdentity={visualIdentity}
             onUpdateVisualIdentity={setVisualIdentity}
             onInsertSignature={handleInsertSignature}
           />
-        )}
+        </div>
+
+        <div className={`flex-1 flex overflow-hidden relative ${activeTab === 'ai' ? '' : 'hidden'}`}>
+          <AiWorkspace
+            onLoadIntoEditor={(tpl) => {
+              setTemplate(tpl);
+              showToast(`✨ Modelo "${tpl.name}" atualizado com sucesso no editor!`);
+            }}
+            visualIdentity={visualIdentity}
+            externalMessages={aiMessages}
+            onExternalMessagesChange={setAiMessages}
+            externalTemplate={template}
+            onExternalTemplateChange={setTemplate}
+          />
+        </div>
 
         {/* Slide-out Sidebar Overlay for variables manager */}
         {isVariablesOpen && (
@@ -2210,9 +2381,31 @@ export default function App() {
         onDeleteTemplate={handleDeleteSavedTemplate}
         onSaveCurrentTemplate={handleSaveCurrentTemplate}
         currentTemplate={template}
-        storageUsageBytes={getStorageUsageBytes(savedTemplates)}
+        storageUsageBytes={getTotalStorageUsageBytes()}
         storageLimitBytes={STORAGE_LIMIT_BYTES}
         isSavingMode={isSavingMode}
+        onClearAiMessages={() => {
+          const keysToRemove: string[] = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (key === 'react-email-builder-ai-messages' || key.startsWith('react-email-builder-ai-messages-'))) {
+              keysToRemove.push(key);
+            }
+          }
+          keysToRemove.forEach(k => localStorage.removeItem(k));
+          setAiMessages([
+            {
+              role: 'model',
+              content: 'Olá! Sou seu assistente de design de e-mails com IA. Eu entendo perfeitamente o nosso formato de templates JSON, incluindo todas as variações de espaçamentos (paddings e margins), bordas, raios de canto personalizados (border radius), contêineres aninhados para criar cartões destacados (bento-box) e grids de múltiplas colunas para layouts responsivos.\n\nEscreva abaixo o tipo de e-mail que deseja criar ou selecione uma de nossas sugestões rápidas para começarmos!'
+            }
+          ]);
+          showToast('Histórico do chat da IA limpo com sucesso.');
+        }}
+        onClearReusableComponents={() => {
+          localStorage.removeItem('react-email-builder-reusable-components');
+          setReusableComponents([]);
+          showToast('Componentes reutilizáveis excluídos.');
+        }}
       />
 
       {/* Convert Element to Component Naming Modal */}

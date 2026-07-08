@@ -126,7 +126,7 @@ export default function MiniTemplatePreview({ template }: MiniTemplatePreviewPro
   };
 
   return (
-    <div className="aspect-[3/4] h-36 rounded-xl overflow-hidden bg-zinc-950 border border-zinc-900/80 p-2 select-none relative group/mini-canvas flex items-center justify-center mx-auto">
+    <div className="w-full h-40 rounded-xl overflow-hidden bg-zinc-950 border border-zinc-900/80 p-2.5 select-none relative group/mini-canvas flex items-center justify-center">
       {/* Background simulating real email outer canvas */}
       <div 
         className="absolute inset-0 transition-colors duration-300"

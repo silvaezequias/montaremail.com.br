@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Project, EmailTemplate, EmailElement, VisualIdentity, ReusableComponent } from '../types';
 import { DEFAULT_TEMPLATES } from '../utils';
 import MiniTemplatePreview from './MiniTemplatePreview';
+import AiWorkspace, { ChatMessage } from './AiWorkspace';
 import communityTemplate from '../../templates/community/newsletter_comunidade.json';
 import {
   Folder,
@@ -55,6 +56,12 @@ interface ProjectDashboardProps {
   
   // App brand logo
   logoUrl?: string;
+
+  // AI Creator integration
+  onLoadAiTemplate?: (template: EmailTemplate) => void;
+  visualIdentity?: VisualIdentity;
+  aiMessages?: ChatMessage[];
+  onAiMessagesChange?: (messages: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => void;
 }
 
 export default function ProjectDashboard({
@@ -70,7 +77,11 @@ export default function ProjectDashboard({
   onDeleteTemplate,
   onDuplicateTemplate,
   onSelectTemplate,
-  logoUrl = 'https://montaremail.com.br/logo_icon.png'
+  logoUrl = 'https://montaremail.com.br/logo_icon.png',
+  onLoadAiTemplate,
+  visualIdentity,
+  aiMessages,
+  onAiMessagesChange
 }: ProjectDashboardProps) {
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
@@ -79,6 +90,7 @@ export default function ProjectDashboard({
   const [showNewModelModal, setShowNewModelModal] = useState(false);
   const [newModelName, setNewModelName] = useState('');
   const [selectedBaseModelIndex, setSelectedBaseModelIndex] = useState<number>(-1); // -1 for blank
+  const [showAiConfirmModal, setShowAiConfirmModal] = useState(false);
   
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editingProjectName, setEditingProjectName] = useState('');
@@ -87,7 +99,7 @@ export default function ProjectDashboard({
   const [previewVisualIdentity, setPreviewVisualIdentity] = useState<VisualIdentity | null>(null);
   
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [dashboardTab, setDashboardTab] = useState<'project' | 'predefined' | 'community'>('project');
+  const [dashboardTab, setDashboardTab] = useState<'project' | 'predefined' | 'community' | 'ai'>('project');
   const [confirmDeleteProjectId, setConfirmDeleteProjectId] = useState<string | null>(null);
   const [confirmDeleteTemplateId, setConfirmDeleteTemplateId] = useState<string | null>(null);
   
@@ -685,7 +697,7 @@ export default function ProjectDashboard({
             </div>
           )}
               {/* CARDS DE SELEÇÃO DE MODELOS */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-6 border-b border-zinc-900">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pb-6 border-b border-zinc-900">
             {/* Card 1: Modelos Deste Projeto */}
             <button
               type="button"
@@ -711,7 +723,7 @@ export default function ProjectDashboard({
                 </div>
                 <div className="space-y-1">
                   <h4 className="text-xs font-black uppercase tracking-wider text-zinc-200 group-hover:text-white">
-                    Modelos deste Projeto
+                    Modelos
                   </h4>
                   <p className="text-[11px] text-zinc-500 leading-normal line-clamp-2">
                     Edite ou crie modelos de e-mail personalizados e exclusivos salvos dentro deste projeto.
@@ -749,7 +761,7 @@ export default function ProjectDashboard({
                 </div>
                 <div className="space-y-1">
                   <h4 className="text-xs font-black uppercase tracking-wider text-zinc-200 group-hover:text-white">
-                    Templates Predefinidos
+                    Predefinidos
                   </h4>
                   <p className="text-[11px] text-zinc-500 leading-normal line-clamp-2">
                     Comece rapidamente a partir de modelos prontos de alta conversão, incluindo o especial para a Gabrielle.
@@ -787,7 +799,7 @@ export default function ProjectDashboard({
                 </div>
                 <div className="space-y-1">
                   <h4 className="text-xs font-black uppercase tracking-wider text-zinc-200 group-hover:text-white">
-                    Templates da Comunidade
+                    Comunidade
                   </h4>
                   <p className="text-[11px] text-zinc-500 leading-normal line-clamp-2">
                     Modelos enviados pela comunidade de código aberto via Pull Requests no GitHub.
@@ -799,12 +811,41 @@ export default function ProjectDashboard({
                 <ChevronRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
               </div>
             </button>
+
+            {/* Card 4: Criador com IA */}
+            <button
+              type="button"
+              onClick={() => setShowAiConfirmModal(true)}
+              className="p-5 rounded-2xl border border-zinc-850 hover:border-blue-500 bg-zinc-950/20 hover:bg-blue-500/5 transition-all duration-300 text-left cursor-pointer relative group flex flex-col justify-between h-40"
+            >
+              <div className="space-y-2 w-full">
+                <div className="flex justify-between items-start w-full">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center transition-colors bg-blue-500/10 text-blue-400 group-hover:bg-blue-500/20 group-hover:text-blue-300">
+                    <Sparkles className="h-5 w-5 animate-pulse" />
+                  </div>
+                  <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                    Criador IA
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-zinc-200 group-hover:text-white">
+                    Criador IA
+                  </h4>
+                  <p className="text-[11px] text-zinc-500 leading-normal line-clamp-2">
+                    Gere modelos de e-mail profissionais em formato JSON por meio de conversas com IA.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-400 mt-2">
+                <span>Criar com IA</span>
+                <ChevronRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
+              </div>
+            </button>
           </div>
 
           {/* RENDERING ACTIVE SECTION */}
-          {dashboardTab === 'project' && (
-            /* Section 1: Modelos deste Projeto */
-            <div className="space-y-5 pt-2">
+          {/* Section 1: Modelos deste Projeto */}
+          <div className={`space-y-5 pt-2 ${dashboardTab === 'project' ? '' : 'hidden'}`}>
               <div className="flex justify-between items-center">
                 <div className="space-y-1">
                   <h3 className="text-sm font-extrabold uppercase tracking-widest text-indigo-400 flex items-center gap-2">
@@ -980,11 +1021,9 @@ export default function ProjectDashboard({
                 ))}
               </div>
             </div>
-          )}
 
-          {dashboardTab === 'predefined' && (
-            /* Section 2: Templates Predefinidos */
-            <div className="space-y-5 pt-2">
+          {/* Section 2: Templates Predefinidos */}
+          <div className={`space-y-5 pt-2 ${dashboardTab === 'predefined' ? '' : 'hidden'}`}>
               <div className="space-y-1">
                 <h3 className="text-sm font-extrabold uppercase tracking-widest text-amber-400 flex items-center gap-2">
                   <Sparkles className="h-4 w-4" />
@@ -1067,11 +1106,9 @@ export default function ProjectDashboard({
                 ))}
               </div>
             </div>
-          )}
 
-          {dashboardTab === 'community' && (
-            /* Section 3: Templates da Comunidade */
-            <div className="space-y-5 pt-2">
+          {/* Section 3: Templates da Comunidade */}
+          <div className={`space-y-5 pt-2 ${dashboardTab === 'community' ? '' : 'hidden'}`}>
               <div className="space-y-1">
                 <h3 className="text-sm font-extrabold uppercase tracking-widest text-sky-400 flex items-center gap-2">
                   <Users className="h-4 w-4" />
@@ -1151,9 +1188,89 @@ export default function ProjectDashboard({
                 ))}
               </div>
             </div>
-          )}
+
+          {/* Section 4: Criador com IA */}
+          <div className={`space-y-5 pt-2 flex flex-col h-[calc(100vh-325px)] min-h-[580px] ${dashboardTab === 'ai' ? '' : 'hidden'}`} id="ai-creator-dashboard-tab">
+              <div className="space-y-1">
+                <h3 className="text-sm font-extrabold uppercase tracking-widest text-blue-400 flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 animate-pulse" />
+                  Criador com Inteligência Artificial
+                </h3>
+                <p className="text-xs text-zinc-500">
+                  Descreva suas necessidades para nosso assistente gerar layouts profissionais com estruturas complexas, cartões e grids responsivos.
+                </p>
+              </div>
+
+              <div className="flex-1 rounded-2xl border border-zinc-900 bg-zinc-950 overflow-hidden relative shadow-2xl">
+                <AiWorkspace
+                  onLoadIntoEditor={onLoadAiTemplate || (() => {})}
+                  visualIdentity={visualIdentity || activeProject.visualIdentity}
+                  onPreviewTemplate={(tpl) => {
+                    setPreviewTemplate(tpl);
+                    setPreviewVisualIdentity(visualIdentity || activeProject.visualIdentity);
+                  }}
+                  externalMessages={aiMessages}
+                  onExternalMessagesChange={onAiMessagesChange}
+                />
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+
+      {/* MODAL: Confirm Start Template with AI */}
+      {showAiConfirmModal && (
+        <div className="fixed inset-0 bg-zinc-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-5 animate-fade-in text-left">
+            <div className="flex justify-between items-center pb-2 border-b border-zinc-800">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-blue-400 animate-pulse" />
+                Iniciar com Inteligência Artificial
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowAiConfirmModal(false)}
+                className="text-zinc-500 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs text-zinc-300 leading-relaxed">
+                Deseja criar um novo <strong>Modelo em Branco com IA integrada</strong> no projeto atual?
+              </p>
+              <p className="text-[11px] text-zinc-550 leading-relaxed">
+                Isso habilitará a aba especial <strong>Criador IA</strong> no topo do editor principal, permitindo que você construa e personalize todo o layout do seu e-mail através de um chat dinâmico integrado ao sandbox.
+              </p>
+            </div>
+
+            <div className="pt-3 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowAiConfirmModal(false)}
+                className="flex-1 py-2.5 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-white text-xs font-bold rounded-xl transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAiConfirmModal(false);
+                  if (activeProject) {
+                    onSelectTemplate(activeProject.id, 'ai-blank');
+                  } else {
+                    showToast('Por favor, selecione um projeto primeiro.');
+                  }
+                }}
+                className="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-550 hover:to-indigo-550 text-white text-xs font-bold rounded-xl transition-all shadow-lg flex items-center justify-center gap-1.5 animate-pulse"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-blue-200" />
+                Sim, Criar com IA
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL: Visual Preview of Selected Model */}
       {previewTemplate && (

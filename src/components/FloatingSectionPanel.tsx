@@ -19,13 +19,13 @@ interface FloatingSectionPanelProps {
 }
 
 const SECTION_CONFIG = {
-  quickTemplates: { title: 'Modelos Rápidos', icon: Sparkles, color: 'text-blue-400' },
-  savedTemplates: { title: 'Modelos Salvos', icon: FileText, color: 'text-indigo-400' },
+  quickTemplates: { title: 'Modelos', icon: Sparkles, color: 'text-blue-400' },
+  savedTemplates: { title: 'Salvos', icon: FileText, color: 'text-indigo-400' },
   reusableComponents: { title: 'Componentes', icon: Layout, color: 'text-purple-400' },
-  iconsGallery: { title: 'Ícones PNG', icon: Smile, color: 'text-pink-400' },
-  blocks: { title: 'Blocos de Email', icon: Plus, color: 'text-emerald-400' },
-  structure: { title: 'Estrutura do Email', icon: AlignLeft, color: 'text-amber-400' },
-  globalStyles: { title: 'Configurações Globais', icon: Settings, color: 'text-zinc-400' },
+  iconsGallery: { title: 'Ícones', icon: Smile, color: 'text-pink-400' },
+  blocks: { title: 'Blocos', icon: Plus, color: 'text-emerald-400' },
+  structure: { title: 'Estrutura', icon: AlignLeft, color: 'text-amber-400' },
+  globalStyles: { title: 'Estilos', icon: Settings, color: 'text-zinc-400' },
 };
 
 export const FloatingSectionPanel: React.FC<FloatingSectionPanelProps> = ({

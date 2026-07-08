@@ -421,7 +421,7 @@ export default function Sidebar({
               >
                 <span className="flex items-center gap-1.5">
                   <Layout className="h-3.5 w-3.5 text-indigo-400" />
-                  Componentes Reutilizáveis ({reusableComponents.length})
+                  Componentes ({reusableComponents.length})
                 </span>
                 {openSections.reusableComponents ? <ChevronUp className="h-4 w-4 text-zinc-500" /> : <ChevronDown className="h-4 w-4 text-zinc-500" />}
               </button>
@@ -511,7 +511,7 @@ export default function Sidebar({
               >
                 <span className="flex items-center gap-1.5">
                   <Smile className="h-3.5 w-3.5 text-pink-400" />
-                  Ícones PNG para E-mail
+                  Ícones
                 </span>
                 {openSections.iconsGallery ? <ChevronUp className="h-4 w-4 text-zinc-500" /> : <ChevronDown className="h-4 w-4 text-zinc-500" />}
               </button>
@@ -625,7 +625,7 @@ export default function Sidebar({
               >
                 <span className="flex items-center gap-1.5">
                   <Plus className="h-3.5 w-3.5 text-blue-400" />
-                  Blocos Disponíveis (Arraste)
+                  Blocos
                 </span>
                 {openSections.blocks ? <ChevronUp className="h-4 w-4 text-zinc-500" /> : <ChevronDown className="h-4 w-4 text-zinc-500" />}
               </button>
@@ -680,7 +680,7 @@ export default function Sidebar({
               >
                 <span className="flex items-center gap-1.5">
                   <Layout className="h-3.5 w-3.5 text-indigo-400" />
-                  Estrutura do Email ({elements.length})
+                  Estrutura ({elements.length})
                 </span>
                 {openSections.structure ? <ChevronUp className="h-4 w-4 text-zinc-500" /> : <ChevronDown className="h-4 w-4 text-zinc-500" />}
               </button>
@@ -761,7 +761,7 @@ export default function Sidebar({
               >
                 <span className="flex items-center gap-1.5">
                   <Settings className="h-3.5 w-3.5 text-zinc-400" />
-                  Configurações Globais
+                  Estilos
                 </span>
                 {openSections.globalStyles ? <ChevronUp className="h-4 w-4 text-zinc-500" /> : <ChevronDown className="h-4 w-4 text-zinc-500" />}
               </button>
